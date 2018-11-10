@@ -1,0 +1,915 @@
+Microsoft (R) Macro Assembler Version 6.14.8444		    05/11/13 11:03:36
+GPS44.asm						     Page 1 - 1
+
+
+				; ============================================================================
+				; Homemade GPS Receiver
+				; Copyright (c) Andrew Holme 2011-2013
+				; http://www.aholme.co.uk/GPS/Main.htm
+				; ============================================================================
+
+				.model Tiny
+ 0000				.code
+
+ = 000C				NUM_CHANS       equ 12
+
+				; ============================================================================
+
+ = 8000				op_nop          equ 08000h
+ = 8100				op_dup          equ 08100h
+ = 8200				op_swap         equ 08200h
+ = 8300				op_swap16       equ 08300h
+ = 8400				op_over         equ 08400h
+ = 8500				op_drop         equ 08500h
+ = 8600				op_rot          equ 08600h
+ = 8700				op_addi         equ 08700h
+ = 8800				op_add          equ 08800h ; + opt_cin
+ = 8900				op_sub          equ 08900h
+ = 8A00				op_mult         equ 08A00h
+ = 8B00				op_and          equ 08B00h
+ = 8C00				op_or           equ 08C00h
+ = 8D00				op_xor          equ 08D00h
+ = 8E00				op_not          equ 08E00h
+
+ = 9000				op_shl64        equ 09000h
+ = 9100				op_shl          equ 09100h
+ = 9200				op_shr          equ 09200h
+ = 9300				op_rdBit        equ 09300h
+ = 9400				op_fetch16      equ 09400h
+ = 9500				op_store16      equ 09500h
+ = 9C00				op_r            equ 09C00h
+ = 9D00				op_r_from       equ 09D00h
+ = 9E00				op_to_r         equ 09E00h
+
+ = A000				op_call         equ 0A000h
+ = A001				op_branch       equ 0A001h
+ = B000				op_branchZ      equ 0B000h
+ = B001				op_branchNZ     equ 0B001h
+
+ = C000				op_rdReg        equ 0C000h
+ = D000				op_wrReg        equ 0D000h
+ = E000				op_wrEvt        equ 0E000h
+
+ = 0080				opt_ret         equ 1 shl 7
+ = 0040				opt_cin         equ 1 shl 6
+
+ = 8080				op_ret          equ op_nop + opt_ret
+
+				; ============================================================================
+
+ = 0001				GET_CHAN_IQ     equ 1 shl 0
+ = 0002				GET_SRQ         equ 1 shl 1
+ = 0004				GET_SNAPSHOT    equ 1 shl 2
+ = 0008				JTAG_RX         equ 1 shl 3
+ = 0010				GET_JOY         equ 1 shl 4
+
+ = 0001				JTAG_TX         equ 1 shl 0
+ = 0002				SET_VCO         equ 1 shl 1
+ = 0004				SET_MASK        equ 1 shl 2
+ = 0008				SET_CHAN        equ 1 shl 3
+
+ = 0010				SET_CA_NCO      equ 1 shl 4
+ = 0020				SET_LO_NCO      equ 1 shl 5
+ = 0040				SET_SV          equ 1 shl 6
+ = 0080				SET_PAUSE       equ 1 shl 7
+
+ = 0100				SET_LCD         equ 1 shl 8
+
+ = 0001				JTAG_RST        equ 1 shl 0
+ = 0002				JTAG_RDY        equ 1 shl 1
+ = 0004				SAMPLER_RST     equ 1 shl 2
+ = 0008				GET_SAMPLES     equ 1 shl 3
+ = 0010				GET_MEMORY      equ 1 shl 4
+ = 0020				GET_LOG         equ 1 shl 5
+ = 0040				PUT_LOG         equ 1 shl 6
+ = 0080				LOG_RST         equ 1 shl 7
+ = 0100				SET_DAC         equ 1 shl 8
+
+				; ============================================================================
+
+				Service         MACRO chan                  ; ... flag
+				                LOCAL $1
+				                dw op_branchZ + $1
+				                dw chan * sizeof CHANNEL + Chans
+				                dw chan
+				                dw op_call + Method
+				$1:             ;
+				                ENDM                        ; ...
+
+				; ============================================================================
+
+ 0000 0000			Entry:          dw 0
+ 0002  D004			                dw op_wrReg + SET_MASK
+ 0004  C002			                dw op_rdReg + GET_SRQ
+ 0006  8500			                dw op_drop
+
+ 0008 E002			Ready:          dw op_wrEvt + JTAG_RDY
+
+ 000A C002			Main:           dw op_rdReg + GET_SRQ       ; 0
+ 000C  9300			                dw op_rdBit                 ; host_srq
+ 000E  000C [			                dw NUM_CHANS dup(0,op_rdBit); host_srq f(n-1) f(n-2) ... f(1) f(0)
+        0000 9300
+       ]
+
+ = 0000				                chan = 0
+				                rept NUM_CHANS
+				                    Service chan
+				                    chan = chan + 1
+				                endm                        ; host_srq
+ 003E  B046 R		     2	                dw op_branchZ + ??0000
+ 0040  00D4 R		     2	                dw chan * sizeof CHANNEL + Chans
+ 0042  0000		     2	                dw chan
+ 0044  A320 R		     2	                dw op_call + Method
+ 0046			     2	??0000:             ;
+ 0046  B04E R		     2	                dw op_branchZ + ??0001
+ 0048  0100 R		     2	                dw chan * sizeof CHANNEL + Chans
+ 004A  0001		     2	                dw chan
+ 004C  A320 R		     2	                dw op_call + Method
+ 004E			     2	??0001:             ;
+ 004E  B056 R		     2	                dw op_branchZ + ??0002
+ 0050  012C R		     2	                dw chan * sizeof CHANNEL + Chans
+ 0052  0002		     2	                dw chan
+ 0054  A320 R		     2	                dw op_call + Method
+ 0056			     2	??0002:             ;
+ 0056  B05E R		     2	                dw op_branchZ + ??0003
+ 0058  0158 R		     2	                dw chan * sizeof CHANNEL + Chans
+ 005A  0003		     2	                dw chan
+ 005C  A320 R		     2	                dw op_call + Method
+ 005E			     2	??0003:             ;
+ 005E  B066 R		     2	                dw op_branchZ + ??0004
+ 0060  0184 R		     2	                dw chan * sizeof CHANNEL + Chans
+ 0062  0004		     2	                dw chan
+ 0064  A320 R		     2	                dw op_call + Method
+ 0066			     2	??0004:             ;
+ 0066  B06E R		     2	                dw op_branchZ + ??0005
+ 0068  01B0 R		     2	                dw chan * sizeof CHANNEL + Chans
+ 006A  0005		     2	                dw chan
+ 006C  A320 R		     2	                dw op_call + Method
+ 006E			     2	??0005:             ;
+ 006E  B076 R		     2	                dw op_branchZ + ??0006
+ 0070  01DC R		     2	                dw chan * sizeof CHANNEL + Chans
+ 0072  0006		     2	                dw chan
+ 0074  A320 R		     2	                dw op_call + Method
+ 0076			     2	??0006:             ;
+ 0076  B07E R		     2	                dw op_branchZ + ??0007
+ 0078  0208 R		     2	                dw chan * sizeof CHANNEL + Chans
+ 007A  0007		     2	                dw chan
+ 007C  A320 R		     2	                dw op_call + Method
+ 007E			     2	??0007:             ;
+ 007E  B086 R		     2	                dw op_branchZ + ??0008
+ 0080  0234 R		     2	                dw chan * sizeof CHANNEL + Chans
+ 0082  0008		     2	                dw chan
+ 0084  A320 R		     2	                dw op_call + Method
+ 0086			     2	??0008:             ;
+ 0086  B08E R		     2	                dw op_branchZ + ??0009
+ 0088  0260 R		     2	                dw chan * sizeof CHANNEL + Chans
+ 008A  0009		     2	                dw chan
+ 008C  A320 R		     2	                dw op_call + Method
+ 008E			     2	??0009:             ;
+ 008E  B096 R		     2	                dw op_branchZ + ??000A
+ 0090  028C R		     2	                dw chan * sizeof CHANNEL + Chans
+ 0092  000A		     2	                dw chan
+ 0094  A320 R		     2	                dw op_call + Method
+ 0096			     2	??000A:             ;
+ 0096  B09E R		     2	                dw op_branchZ + ??000B
+ 0098  02B8 R		     2	                dw chan * sizeof CHANNEL + Chans
+ 009A  000B		     2	                dw chan
+ 009C  A320 R		     2	                dw op_call + Method
+ 009E			     2	??000B:             ;
+
+ 009E  B00A R			                dw op_branchZ + Main        ;
+
+ 00A0  E001			                dw op_wrEvt + JTAG_RST      ;
+ 00A2  C008			                dw op_rdReg + JTAG_RX       ; cmd
+ 00A4  9100			                dw op_shl                   ; offset
+ 00A6  00B4 R 8800		                dw Commands, op_add         ; &Commands[cmd]
+ 00AA  9400			                dw op_fetch16               ; vector
+ 00AC  0008 R			                dw Ready                    ; vector Ready
+ 00AE  0002 [			                dw 2 dup (op_to_r)          ;                   ; Ready vector
+        9E00
+       ]
+ 00B2  8080			                dw op_ret
+
+				; ============================================================================
+
+ 00B4 04BC R			Commands:       dw CmdSample
+ 00B6  04C0 R			                dw CmdSetMask
+ 00B8  04C6 R			                dw CmdSetRateCA
+ 00BA  04E8 R			                dw CmdSetRateLO
+ 00BC  050A R			                dw CmdSetGainCA
+ 00BE  0520 R			                dw CmdSetGainLO
+ 00C0  0536 R			                dw CmdSetSV
+ 00C2  0540 R			                dw CmdPause
+ 00C4  054A R			                dw CmdSetVCO
+ 00C6  0558 R			                dw CmdGetSamples
+ 00C8  057C R			                dw CmdGetChan
+ 00CA  0586 R			                dw CmdGetClocks
+ 00CC  05C0 R			                dw CmdGetGlitches
+ 00CE  05DE R			                dw CmdSetDAC
+ 00D0  0624 R			                dw CmdSetLCD
+ 00D2  062A R			                dw CmdGetJoy
+
+				; ============================================================================
+
+ = 0040				MAX_BITS        equ 64
+
+ 002C				CHANNEL         struct
+ 0000  0000			ch_NAV_MS       dw ?                        ; Milliseconds 0 ... 19
+ 0002  0000			ch_NAV_BITS     dw ?                        ; Bit count
+ 0004  0000			ch_NAV_GLITCH   dw ?                        ; Glitch count
+ 0006  0000			ch_NAV_PREV     dw ?                        ; Last data bit = ip[15]
+ 0008  0004 [			ch_NAV_BUF      dw MAX_BITS/16 dup (?)      ; NAV data buffer
+        0000
+       ]
+ 0010  0000000000000000		ch_CA_FREQ      dq ?                        ; Loop integrator
+ 0018  0000000000000000		ch_LO_FREQ      dq ?                        ; Loop integrator
+ 0020  0002 [			ch_IQ           dw 2 dup (?)                ; Last IP, QP
+        0000
+       ]
+ 0024  0002 [			ch_CA_GAIN      dw 2 dup (?)                ; KI, KP-KI = 20, 27-20
+        0000
+       ]
+ 0028  0002 [			ch_LO_GAIN      dw 2 dup (?)                ; KI, KP-KI = 21, 28-21
+        0000
+       ]
+				CHANNEL         ends
+
+ 00D4  000C [			Chans:          CHANNEL NUM_CHANS dup (<>)
+        0000 0000 0000
+        0000
+        0004 [
+	 0000
+	]
+        0000000000000000
+        0000000000000000
+        0002 [
+	 0000
+	]
+        0002 [
+	 0000
+	]
+        0002 [
+	 0000
+	]
+       ]
+
+ 02E4 002C 8A00			GetChanPtr:     dw sizeof CHANNEL, op_mult
+ 02E8  00D4 R 8880		                dw Chans, op_add + opt_ret
+
+				; ============================================================================
+
+				CloseLoop       MACRO freq, gain, nco       ; err32
+				                dw op_extend                ; err64                         9
+				                dw op_r, op_addi + gain     ; err64 &gain[0]                2
+				                dw op_fetch16               ; err64 ki                      1
+				                dw op_shl64_n               ; ki.e64                     ki+8
+				                dw op_over, op_over         ; ki.e64 ki.e64                 2
+				                dw op_r, op_addi + freq     ; ki.e64 ki.e64 &freq           2
+				                dw op_fetch64               ; ki.e64 ki.e64 old64          19
+				                dw op_add64                 ; ki.e64 new64                  7
+				                dw op_over, op_over         ; ki.e64 new64 new64            2
+				                dw op_r, op_addi + freq     ; ki.e64 new64 new64 &freq      2
+				                dw op_store64, op_drop      ; ki.e64 new64                 18
+				                dw op_swap64                ; new64 ki.e64                  6
+				                dw op_r, op_addi + gain + 2 ; new64 ki.e64 &gain[1]         2
+				                dw op_fetch16               ; new64 ki.e64 kp-ki            1
+				                dw op_shl64_n               ; new64 kp.e64            kp-ki+8
+				                dw op_add64                 ; nco64                         7
+				                dw op_drop                  ; nco32                         1
+				                dw op_wrReg + nco           ;                               1
+				                ENDM                        ;                 TOTAL = kp + 98
+
+				; ============================================================================
+
+ 02EC 0000 9300			GetCount:       dw 0, op_rdbit              ; [14]                         20
+ 02F0  8100			                dw op_dup                   ; [14] [14]
+ 02F2  9100			                dw op_shl                   ; [14] [15]
+ 02F4  8800			                dw op_add                   ; [15:14]
+ 02F6  000D [			                dw 13 dup (op_rdBit)        ; [15:1]
+        9300
+       ]
+ 0310  9180			                dw op_shl + opt_ret         ; [15:0]
+
+ 0312 A2EC R			GetPower:       dw op_call + GetCount       ; i                            48
+ 0314  8100 8A00		                dw op_dup, op_mult          ; i^2
+ 0318  A2EC R			                dw op_call + GetCount       ; i^2 q
+ 031A  8100 8A00		                dw op_dup, op_mult          ; i^2 q^2
+ 031E  8880			                dw op_add + opt_ret         ; p
+
+				; ============================================================================
+
+ 0320 D008			Method:         dw op_wrReg + SET_CHAN      ; this
+ 0322  9E00			                dw op_to_r                  ;
+
+ 0324  C001			                dw op_rdReg + GET_CHAN_IQ   ; 0
+ 0326  9300			                dw op_rdBit                 ; bit
+ 0328  8100			                dw op_dup                   ; bit bit
+ 032A  A2F0 R			                dw op_call + GetCount + 4   ; bit ip
+ 032C  A2EC R			                dw op_call + GetCount       ; bit ip qp
+
+ 032E  8400 8400		                dw op_over, op_over         ; bit ip qp ip qp
+ 0332  9C00			                dw op_r                     ; bit ip qp ip qp this
+ 0334  8720			                dw op_addi + ch_IQ          ; bit ip qp ip qp &q
+ 0336  9500 8702		                dw op_store16, op_addi + 2  ; bit ip qp ip &i
+ 033A  9500 8500		                dw op_store16, op_drop      ; bit ip qp
+
+ 033E  8A00			                dw op_mult                  ; bit ip*qp
+
+				                CloseLoop ch_LO_FREQ, ch_LO_GAIN, SET_LO_NCO
+ 0340  A6C8 R		     1	                dw op_extend                ; err64                         9
+ 0342  9C00 8728	     1	                dw op_r, op_addi + ch_LO_GAIN     ; err64 &gain[0]                2
+ 0346  9400		     1	                dw op_fetch16               ; err64 ki                      1
+ 0348  A67A R		     1	                dw op_shl64_n               ; ki.e64                     ki+8
+ 034A  8400 8400	     1	                dw op_over, op_over         ; ki.e64 ki.e64                 2
+ 034E  9C00 8718	     1	                dw op_r, op_addi + ch_LO_FREQ     ; ki.e64 ki.e64 &freq           2
+ 0352  A63C R		     1	                dw op_fetch64               ; ki.e64 ki.e64 old64          19
+ 0354  A66E R		     1	                dw op_add64                 ; ki.e64 new64                  7
+ 0356  8400 8400	     1	                dw op_over, op_over         ; ki.e64 new64 new64            2
+ 035A  9C00 8718	     1	                dw op_r, op_addi + ch_LO_FREQ     ; ki.e64 new64 new64 &freq      2
+ 035E  A652 R 8500	     1	                dw op_store64, op_drop      ; ki.e64 new64                 18
+ 0362  A664 R		     1	                dw op_swap64                ; new64 ki.e64                  6
+ 0364  9C00 872A	     1	                dw op_r, op_addi + ch_LO_GAIN + 2 ; new64 ki.e64 &gain[1]         2
+ 0368  9400		     1	                dw op_fetch16               ; new64 ki.e64 kp-ki            1
+ 036A  A67A R		     1	                dw op_shl64_n               ; new64 kp.e64            kp-ki+8
+ 036C  A66E R		     1	                dw op_add64                 ; nco64                         7
+ 036E  8500		     1	                dw op_drop                  ; nco32                         1
+ 0370  D020		     1	                dw op_wrReg + SET_LO_NCO           ;                               1
+
+ 0372  A312 R			                dw op_call + GetPower       ; bit pe
+ 0374  A312 R			                dw op_call + GetPower       ; bit pe pl
+ 0376  8900			                dw op_sub                   ; bit pe-pl
+
+				                CloseLoop ch_CA_FREQ, ch_CA_GAIN, SET_CA_NCO
+ 0378  A6C8 R		     1	                dw op_extend                ; err64                         9
+ 037A  9C00 8724	     1	                dw op_r, op_addi + ch_CA_GAIN     ; err64 &gain[0]                2
+ 037E  9400		     1	                dw op_fetch16               ; err64 ki                      1
+ 0380  A67A R		     1	                dw op_shl64_n               ; ki.e64                     ki+8
+ 0382  8400 8400	     1	                dw op_over, op_over         ; ki.e64 ki.e64                 2
+ 0386  9C00 8710	     1	                dw op_r, op_addi + ch_CA_FREQ     ; ki.e64 ki.e64 &freq           2
+ 038A  A63C R		     1	                dw op_fetch64               ; ki.e64 ki.e64 old64          19
+ 038C  A66E R		     1	                dw op_add64                 ; ki.e64 new64                  7
+ 038E  8400 8400	     1	                dw op_over, op_over         ; ki.e64 new64 new64            2
+ 0392  9C00 8710	     1	                dw op_r, op_addi + ch_CA_FREQ     ; ki.e64 new64 new64 &freq      2
+ 0396  A652 R 8500	     1	                dw op_store64, op_drop      ; ki.e64 new64                 18
+ 039A  A664 R		     1	                dw op_swap64                ; new64 ki.e64                  6
+ 039C  9C00 8726	     1	                dw op_r, op_addi + ch_CA_GAIN + 2 ; new64 ki.e64 &gain[1]         2
+ 03A0  9400		     1	                dw op_fetch16               ; new64 ki.e64 kp-ki            1
+ 03A2  A67A R		     1	                dw op_shl64_n               ; new64 kp.e64            kp-ki+8
+ 03A4  A66E R		     1	                dw op_add64                 ; nco64                         7
+ 03A6  8500		     1	                dw op_drop                  ; nco32                         1
+ 03A8  D010		     1	                dw op_wrReg + SET_CA_NCO           ;                               1
+
+ 03AA  9C00			                dw op_r                     ; bit this
+ 03AC  8706			                dw op_addi + ch_NAV_PREV    ; bit &prev
+ 03AE  9400			                dw op_fetch16               ; bit prev
+ 03B0  8400			                dw op_over                  ; bit prev bit
+ 03B2  8900			                dw op_sub                   ; bit diff
+ 03B4  B3E2 R			                dw op_branchZ + NavSame     ; bit
+
+ 03B6  9C00			                dw op_r                     ; bit this
+ 03B8  8706			                dw op_addi + ch_NAV_PREV    ; bit &prev
+ 03BA  9500 8500		                dw op_store16, op_drop      ;
+
+ 03BE  9C00			                dw op_r                     ; this
+ 03C0  8700			                dw op_addi + ch_NAV_MS      ; &ms
+ 03C2  9400			                dw op_fetch16               ; ms
+ 03C4  B3D6 R			                dw op_branchZ + NavEdge
+
+ 03C6  9C00			                dw op_r                     ; this
+ 03C8  8704			                dw op_addi + ch_NAV_GLITCH  ; &g
+ 03CA  9400			                dw op_fetch16               ; g
+ 03CC  8701			                dw op_addi + 1              ; g+1
+ 03CE  9C00			                dw op_r                     ; g+1 this
+ 03D0  8704			                dw op_addi + ch_NAV_GLITCH  ; g+1 &g
+ 03D2  9500 8500		                dw op_store16, op_drop      ;
+
+ 03D6 0001			NavEdge:        dw 1                        ; 1
+ 03D8  9D00			                dw op_r_from                ; 1 this
+ 03DA  8700			                dw op_addi + ch_NAV_MS      ; 1 &ms
+ 03DC  9500 8500		                dw op_store16, op_drop      ;
+ 03E0  8080			                dw op_ret
+
+ 03E2 9C00			NavSame:        dw op_r                     ; bit this
+ 03E4  8700			                dw op_addi + ch_NAV_MS      ; bit &ms
+ 03E6  8100			                dw op_dup                   ; bit &ms &ms
+ 03E8  9400			                dw op_fetch16               ; bit &ms ms
+ 03EA  0013 8900		                dw 19, op_sub               ; bit &ms ms-19
+ 03EE  B3FE R			                dw op_branchZ + NavSave     ; bit &ms
+
+ 03F0  9400			                dw op_fetch16               ; bit ms
+ 03F2  8701			                dw op_addi + 1              ; bit ms+1
+ 03F4  9D00			                dw op_r_from                ; bit ms+1 this
+ 03F6  8700			                dw op_addi + ch_NAV_MS      ; bit ms+1 &ms
+ 03F8  9500 8500		                dw op_store16, op_drop      ; bit
+ 03FC  8580			                dw op_drop + opt_ret        ;
+
+ 03FE 0000 8200			NavSave:        dw 0, op_swap               ; bit 0 &ms
+ 0402  9500 8500		                dw op_store16, op_drop      ; bit
+
+ 0406  9C00			                dw op_r                     ; bit this
+ 0408  8702			                dw op_addi + ch_NAV_BITS    ; bit &cnt
+ 040A  9400			                dw op_fetch16               ; bit cnt
+ 040C  8100			                dw op_dup                   ; bit cnt cnt
+ 040E  8701			                dw op_addi + 1              ; bit cnt cnt+1
+ 0410  003F 8B00		                dw MAX_BITS-1, op_and       ; bit cnt wrapped
+ 0414  9C00			                dw op_r                     ; bit cnt wrapped this
+ 0416  8702			                dw op_addi + ch_NAV_BITS    ; bit cnt wrapped &cnt
+ 0418  9500 8500		                dw op_store16, op_drop      ; bit cnt
+
+ 041C  0004 [			                dw 4 dup (op_shr)           ; bit cnt/16
+        9200
+       ]
+ 0424  9100			                dw op_shl                   ; bit offset
+ 0426  9D00			                dw op_r_from                ; bit offset this
+ 0428  8708			                dw op_addi + ch_NAV_BUF     ; bit offset buf
+ 042A  8800			                dw op_add                   ; bit ptr
+ 042C  8100			                dw op_dup                   ; bit ptr ptr
+ 042E  9E00			                dw op_to_r                  ; bit ptr
+ 0430  9400			                dw op_fetch16               ; bit old
+ 0432  9100			                dw op_shl                   ; bit old<<1
+ 0434  8800			                dw op_add                   ; new
+ 0436  9D00			                dw op_r_from                ; new ptr
+ 0438  9500 8500		                dw op_store16, op_drop      ;
+ 043C  8080			                dw op_ret
+
+				; ============================================================================
+
+ 043E  0010 [			UploadSamples:  dw 16 dup (op_wrEvt + GET_SAMPLES)
+        E008
+       ]
+ 045E  8080			                dw op_ret
+
+ 0460  0016 [			UploadChan:     dw sizeof CHANNEL / 2 dup (op_wrEvt + GET_MEMORY)
+        E010
+       ]
+ 048C  8080			                dw op_ret
+
+ 048E  0002 [			UploadClock:    dw 2 dup (op_wrEvt + GET_MEMORY)
+        E010
+       ]
+ 0492  0000			                dw 0, 16 dup (op_rdBit)
+       0010 [
+        9300
+       ]
+ 04B4  D001			                dw op_wrReg + JTAG_TX
+ 04B6  87A8			                dw opt_ret + op_addi + sizeof CHANNEL - 4
+
+ 04B8 E010			UploadGlitches: dw op_wrEvt + GET_MEMORY
+ 04BA  87AA			                dw opt_ret + op_addi + sizeof CHANNEL - 2
+
+				; ============================================================================
+
+				RdReg32         MACRO reg
+				                dw 2 dup (op_rdReg + reg)   ; 0,l 0,h
+				                dw op_swap16                ; 0,l h,0
+				                dw op_add                   ; h,l
+				                ENDM
+
+				; ============================================================================
+
+				SetReg          MACRO reg
+				                dw op_rdReg + JTAG_RX
+				                dw op_wrReg + reg
+				                ENDM
+
+				SetRate         MACRO member, nco           ;
+				                dw op_rdReg + JTAG_RX       ; chan
+				                RdReg32       JTAG_RX       ; chan freq32
+				                dw op_swap                  ; freq32 chan
+				                dw op_over                  ; freq32 chan freq32
+				                dw op_over                  ; freq32 chan freq32 chan
+				                dw op_call + GetChanPtr     ; freq32 chan freq32 this
+				                dw op_addi + member         ; freq32 chan freq32 &freq
+				                dw 0, op_swap               ; freq32 chan freq64 &freq
+				                dw op_store64, op_drop      ; freq chan
+				                dw op_wrReg + SET_CHAN      ; freq
+				                dw op_wrReg + nco           ;
+				                ENDM
+
+				SetGain         MACRO member                ;
+				                dw op_rdReg + JTAG_RX       ; chan
+				                RdReg32       JTAG_RX       ; chan  kp,ki
+				                dw op_swap                  ; kp,ki  chan
+				                dw op_call + GetChanPtr     ; kp,ki  this
+				                dw op_addi + member         ; kp,ki  &gain
+				                dw op_store32, op_drop      ;
+				                ENDM
+
+				; ============================================================================
+
+ 04BC E004			CmdSample:      dw op_wrEvt + SAMPLER_RST
+ 04BE  8080			                dw op_ret
+
+ 04C0				CmdSetMask:     SetReg SET_MASK
+ 04C0  C008		     1	                dw op_rdReg + JTAG_RX
+ 04C2  D004		     1	                dw op_wrReg + SET_MASK
+ 04C4  8080			                dw op_ret
+
+ 04C6				CmdSetRateCA:   SetRate ch_CA_FREQ, SET_CA_NCO
+ 04C6  C008		     1	                dw op_rdReg + JTAG_RX       ; chan
+ 04C8  0002 [		     2	                dw 2 dup (op_rdReg + JTAG_RX)   ; 0,l 0,h
+        C008
+       ]
+ 04CC  8300		     2	                dw op_swap16                ; 0,l h,0
+ 04CE  8800		     2	                dw op_add                   ; h,l
+ 04D0  8200		     1	                dw op_swap                  ; freq32 chan
+ 04D2  8400		     1	                dw op_over                  ; freq32 chan freq32
+ 04D4  8400		     1	                dw op_over                  ; freq32 chan freq32 chan
+ 04D6  A2E4 R		     1	                dw op_call + GetChanPtr     ; freq32 chan freq32 this
+ 04D8  8710		     1	                dw op_addi + ch_CA_FREQ         ; freq32 chan freq32 &freq
+ 04DA  0000 8200	     1	                dw 0, op_swap               ; freq32 chan freq64 &freq
+ 04DE  A652 R 8500	     1	                dw op_store64, op_drop      ; freq chan
+ 04E2  D008		     1	                dw op_wrReg + SET_CHAN      ; freq
+ 04E4  D010		     1	                dw op_wrReg + SET_CA_NCO           ;
+ 04E6  8080			                dw op_ret
+
+ 04E8				CmdSetRateLO:   SetRate ch_LO_FREQ, SET_LO_NCO
+ 04E8  C008		     1	                dw op_rdReg + JTAG_RX       ; chan
+ 04EA  0002 [		     2	                dw 2 dup (op_rdReg + JTAG_RX)   ; 0,l 0,h
+        C008
+       ]
+ 04EE  8300		     2	                dw op_swap16                ; 0,l h,0
+ 04F0  8800		     2	                dw op_add                   ; h,l
+ 04F2  8200		     1	                dw op_swap                  ; freq32 chan
+ 04F4  8400		     1	                dw op_over                  ; freq32 chan freq32
+ 04F6  8400		     1	                dw op_over                  ; freq32 chan freq32 chan
+ 04F8  A2E4 R		     1	                dw op_call + GetChanPtr     ; freq32 chan freq32 this
+ 04FA  8718		     1	                dw op_addi + ch_LO_FREQ         ; freq32 chan freq32 &freq
+ 04FC  0000 8200	     1	                dw 0, op_swap               ; freq32 chan freq64 &freq
+ 0500  A652 R 8500	     1	                dw op_store64, op_drop      ; freq chan
+ 0504  D008		     1	                dw op_wrReg + SET_CHAN      ; freq
+ 0506  D020		     1	                dw op_wrReg + SET_LO_NCO           ;
+ 0508  8080			                dw op_ret
+
+ 050A				CmdSetGainCA:   SetGain ch_CA_GAIN
+ 050A  C008		     1	                dw op_rdReg + JTAG_RX       ; chan
+ 050C  0002 [		     2	                dw 2 dup (op_rdReg + JTAG_RX)   ; 0,l 0,h
+        C008
+       ]
+ 0510  8300		     2	                dw op_swap16                ; 0,l h,0
+ 0512  8800		     2	                dw op_add                   ; h,l
+ 0514  8200		     1	                dw op_swap                  ; kp,ki  chan
+ 0516  A2E4 R		     1	                dw op_call + GetChanPtr     ; kp,ki  this
+ 0518  8724		     1	                dw op_addi + ch_CA_GAIN         ; kp,ki  &gain
+ 051A  A656 R 8500	     1	                dw op_store32, op_drop      ;
+ 051E  8080			                dw op_ret
+
+ 0520				CmdSetGainLO:   SetGain ch_LO_GAIN
+ 0520  C008		     1	                dw op_rdReg + JTAG_RX       ; chan
+ 0522  0002 [		     2	                dw 2 dup (op_rdReg + JTAG_RX)   ; 0,l 0,h
+        C008
+       ]
+ 0526  8300		     2	                dw op_swap16                ; 0,l h,0
+ 0528  8800		     2	                dw op_add                   ; h,l
+ 052A  8200		     1	                dw op_swap                  ; kp,ki  chan
+ 052C  A2E4 R		     1	                dw op_call + GetChanPtr     ; kp,ki  this
+ 052E  8728		     1	                dw op_addi + ch_LO_GAIN         ; kp,ki  &gain
+ 0530  A656 R 8500	     1	                dw op_store32, op_drop      ;
+ 0534  8080			                dw op_ret
+
+ 0536				CmdSetSV:       SetReg SET_CHAN
+ 0536  C008		     1	                dw op_rdReg + JTAG_RX
+ 0538  D008		     1	                dw op_wrReg + SET_CHAN
+				                SetReg SET_SV
+ 053A  C008		     1	                dw op_rdReg + JTAG_RX
+ 053C  D040		     1	                dw op_wrReg + SET_SV
+ 053E  8080			                dw op_ret
+
+ 0540				CmdPause:       SetReg SET_CHAN
+ 0540  C008		     1	                dw op_rdReg + JTAG_RX
+ 0542  D008		     1	                dw op_wrReg + SET_CHAN
+				                SetReg SET_PAUSE
+ 0544  C008		     1	                dw op_rdReg + JTAG_RX
+ 0546  D080		     1	                dw op_wrReg + SET_PAUSE
+ 0548  8080			                dw op_ret
+
+ 054A C008			CmdSetVCO:      dw op_rdReg + JTAG_RX       ; wparam
+				                RdReg32       JTAG_RX       ; wparam lparam
+ 054C  0002 [		     1	                dw 2 dup (op_rdReg + JTAG_RX)   ; 0,l 0,h
+        C008
+       ]
+ 0550  8300		     1	                dw op_swap16                ; 0,l h,0
+ 0552  8800		     1	                dw op_add                   ; h,l
+ 0554  D002			                dw op_wrReg + SET_VCO       ; wparam
+ 0556  8580			                dw op_drop + opt_ret
+
+ 0558 E001			CmdGetSamples:  dw op_wrEvt + JTAG_RST
+ 055A  0010 [			                dw 16 dup (op_call + UploadSamples)
+        A43E R
+       ]
+ 057A  8080			                dw op_ret
+
+ 057C C008			CmdGetChan:     dw op_rdReg + JTAG_RX       ; wparam
+ 057E  E001			                dw op_wrEvt + JTAG_RST      ; chan
+ 0580  A2E4 R			                dw op_call + GetChanPtr     ; this
+ 0582  A460 R			                dw op_call + UploadChan     ; this++
+ 0584  8580			                dw op_drop + opt_ret
+
+ 0586 E001			CmdGetClocks:   dw op_wrEvt + JTAG_RST
+ 0588  C004			                dw op_rdReg + GET_SNAPSHOT
+ 058A  000C [			                dw NUM_CHANS dup (op_rdBit)
+        9300
+       ]
+ 05A2  D001			                dw op_wrReg + JTAG_TX
+ 05A4  00D4 R			                dw Chans
+ 05A6  000C [			                dw NUM_CHANS dup (op_call + UploadClock)
+        A48E R
+       ]
+ 05BE  8580			                dw op_drop + opt_ret
+
+ 05C0 E001			CmdGetGlitches: dw op_wrEvt + JTAG_RST
+ 05C2  00D8 R			                dw Chans + ch_NAV_GLITCH
+ 05C4  000C [			                dw NUM_CHANS dup (op_call + UploadGlitches)
+        A4B8 R
+       ]
+ 05DC  8580			                dw op_drop + opt_ret
+
+ 05DE C008			CmdSetDAC:      dw op_rdReg + JTAG_RX       ; wparam
+ 05E0  6000			                dw 3 shl 13                 ; d[11:0] cmd<<13
+ 05E2  0008 [			                dw 8 dup (op_call+DAC_bit)
+        A632 R
+       ]
+ 05F2  8500			                dw op_drop                  ; d[11:0]
+ 05F4  0005 [			                dw 5 dup (op_shl)           ; d[11:0]<<5
+        9100
+       ]
+ 05FE  0010 [			                dw 16 dup (op_call+DAC_bit)
+        A632 R
+       ]
+ 061E  8701			                dw op_addi + 1
+ 0620  E100			                dw op_wrEvt + SET_DAC       ; CS_N=1
+ 0622  8580			                dw op_drop + opt_ret
+
+ 0624 C008			CmdSetLCD:      dw op_rdReg + JTAG_RX       ; wparam
+ 0626  D100			                dw op_WrReg + SET_LCD
+ 0628  8080			                dw op_ret
+
+ 062A E001			CmdGetJoy:      dw op_wrEvt + JTAG_RST
+ 062C  C010			                dw op_rdReg + GET_JOY       ; joy
+ 062E  D001			                dw op_wrReg + JTAG_TX
+ 0630  8080			                dw op_ret
+
+				; ============================================================================
+
+ 0632 9100			DAC_bit:        dw op_shl
+ 0634  E100			                dw op_wrEvt + SET_DAC       ; SCK=0, CS_N=0
+ 0636  8702			                dw op_addi + 2
+ 0638  E100			                dw op_wrEvt + SET_DAC       ; SCK=1
+ 063A  8080			                dw op_ret
+
+				; ============================================================================
+
+ 063C = A63C			op_fetch64      equ op_call + $             ; a                            19
+ 063C  8100			                dw op_dup                   ; a a
+ 063E  8704			                dw op_addi + 4              ; a a+4
+ 0640  A644 R			                dw op_fetch32               ; a [63:32]
+ 0642  8200			                dw op_swap                  ; [63:32] a
+
+ 0644 = A644			op_fetch32      equ op_call + $             ; a                             8
+ 0644  8100			                dw op_dup                   ; a a
+ 0646  9400			                dw op_fetch16               ; a [15:0]
+ 0648  8200			                dw op_swap                  ; [15:0] a
+ 064A  8702			                dw op_addi + 2              ; [15:0] a+2
+ 064C  9400			                dw op_fetch16               ; [15:0] [31:16]
+ 064E  8300			                dw op_swap16                ; [15:0] [31:16]<<16
+ 0650  8880			                dw op_add + opt_ret         ; [31:0]
+
+				; ============================================================================
+
+ 0652 = A652			op_store64      equ op_call + $             ; [63:32] [31:0] a             17
+ 0652  A656 R			                dw op_store32               ; [63:32] a
+ 0654  8704			                dw op_addi + 4              ; [63:32] a+4
+
+ 0656 = A656			op_store32      equ op_call + $             ; [31:0] a                      8
+ 0656  8400			                dw op_over                  ; [31:0] a [31:0]
+ 0658  8300			                dw op_swap16                ; [15:0] a [31:16]
+ 065A  8400			                dw op_over                  ; [15:0] a [31:16] a
+ 065C  8702			                dw op_addi + 2              ; [15:0] a [31:16] a+2
+ 065E  9500 8500		                dw op_store16, op_drop      ; [15:0] a
+ 0662  9580			                dw op_store16 + opt_ret     ; a
+
+				; ============================================================================
+
+ 0664 = A664			op_swap64       equ op_call + $             ; ah al bh bl                   6
+ 0664  8600			                dw op_rot                   ; ah bh bl al
+ 0666  9E00			                dw op_to_r                  ; ah bh bl          ; al
+ 0668  8600			                dw op_rot                   ; bh bl ah          ; al
+ 066A  9D00			                dw op_r_from                ; bh bl ah al
+ 066C  8080			                dw op_ret
+
+				; ============================================================================
+
+ 066E = A66E			op_add64        equ op_call + $             ; ah al bh bl                   7
+ 066E  8600			                dw op_rot                   ; ah bh bl al
+ 0670  8800			                dw op_add                   ; ah bh sl
+ 0672  9E00			                dw op_to_r                  ; ah bh             ; sl
+ 0674  8840			                dw op_add + opt_cin         ; sh                ; sl
+ 0676  9D00			                dw op_r_from                ; sh sl
+ 0678  8080			                dw op_ret
+
+				; ============================================================================
+
+ 067A = A67A			op_shl64_n      equ op_call + $             ; i64 n                       n+8
+ 067A  06C6 R			                dw Shifted                  ; i64 n Shifted
+ 067C  8200			                dw op_swap                  ; i64 Shifted n
+ 067E  9100			                dw op_shl                   ; i64 Shifted n*2
+ 0680  8900			                dw op_sub                   ; i64 Shifted-n*2
+ 0682  9E00			                dw op_to_r                  ; i64               ; Shifted-n*2
+ 0684  8080			                dw op_ret
+
+ 0686  0020 [			                dw 32 dup (op_shl64)        ; i64<<n
+        9000
+       ]
+ 06C6 8080			Shifted:        dw op_ret
+
+				; ============================================================================
+
+ 06C8 = A6C8			op_extend       equ op_call + $             ; i32                           9
+ 06C8  0000			                dw 0                        ; i32 0
+ 06CA  8400			                dw op_over                  ; i32 0 i32
+ 06CC  9000			                dw op_shl64                 ; i32 sgn xxx
+ 06CE  8500			                dw op_drop                  ; i32 sgn
+ 06D0  0000			                dw 0                        ; i32 sgn 0
+ 06D2  8200			                dw op_swap                  ; i32 0 sgn
+ 06D4  8900			                dw op_sub                   ; i32 0-sgn
+ 06D6  8280			                dw op_swap + opt_ret        ; i64
+
+				; ============================================================================
+
+				                END
+
+Microsoft (R) Macro Assembler Version 6.14.8444		    05/11/13 11:03:36
+GPS44.asm						     Symbols 2 - 1
+
+
+
+
+Macros:
+
+                N a m e                 Type
+
+CloseLoop  . . . . . . . . . . .	Proc
+RdReg32  . . . . . . . . . . . .	Proc
+Service  . . . . . . . . . . . .	Proc
+SetGain  . . . . . . . . . . . .	Proc
+SetRate  . . . . . . . . . . . .	Proc
+SetReg . . . . . . . . . . . . .	Proc
+
+
+Structures and Unions:
+
+                N a m e                  Size
+                                         Offset      Type
+
+CHANNEL  . . . . . . . . . . . .	 002C
+  ch_NAV_MS  . . . . . . . . . .	 0000	     Word
+  ch_NAV_BITS  . . . . . . . . .	 0002	     Word
+  ch_NAV_GLITCH  . . . . . . . .	 0004	     Word
+  ch_NAV_PREV  . . . . . . . . .	 0006	     Word
+  ch_NAV_BUF . . . . . . . . . .	 0008	     Word
+  ch_CA_FREQ . . . . . . . . . .	 0010	     QWord
+  ch_LO_FREQ . . . . . . . . . .	 0018	     QWord
+  ch_IQ  . . . . . . . . . . . .	 0020	     Word
+  ch_CA_GAIN . . . . . . . . . .	 0024	     Word
+  ch_LO_GAIN . . . . . . . . . .	 0028	     Word
+
+
+Segments and Groups:
+
+                N a m e                 Size     Length   Align   Combine Class
+
+DGROUP . . . . . . . . . . . . .	GROUP
+_TEXT  . . . . . . . . . . . . .	16 Bit	 06D8	  Word	  Public  'CODE'
+_DATA  . . . . . . . . . . . . .	16 Bit	 0000	  Word	  Public  'DATA'
+
+
+Symbols:
+
+                N a m e                 Type     Value    Attr
+
+??0000 . . . . . . . . . . . . .	L Near	 0046	  _TEXT
+??0001 . . . . . . . . . . . . .	L Near	 004E	  _TEXT
+??0002 . . . . . . . . . . . . .	L Near	 0056	  _TEXT
+??0003 . . . . . . . . . . . . .	L Near	 005E	  _TEXT
+??0004 . . . . . . . . . . . . .	L Near	 0066	  _TEXT
+??0005 . . . . . . . . . . . . .	L Near	 006E	  _TEXT
+??0006 . . . . . . . . . . . . .	L Near	 0076	  _TEXT
+??0007 . . . . . . . . . . . . .	L Near	 007E	  _TEXT
+??0008 . . . . . . . . . . . . .	L Near	 0086	  _TEXT
+??0009 . . . . . . . . . . . . .	L Near	 008E	  _TEXT
+??000A . . . . . . . . . . . . .	L Near	 0096	  _TEXT
+??000B . . . . . . . . . . . . .	L Near	 009E	  _TEXT
+@CodeSize  . . . . . . . . . . .	Number	 0000h
+@DataSize  . . . . . . . . . . .	Number	 0000h
+@Interface . . . . . . . . . . .	Number	 0000h
+@Model . . . . . . . . . . . . .	Number	 0001h
+@code  . . . . . . . . . . . . .	Text   	 DGROUP
+@data  . . . . . . . . . . . . .	Text   	 DGROUP
+@fardata?  . . . . . . . . . . .	Text   	 FAR_BSS
+@fardata . . . . . . . . . . . .	Text   	 FAR_DATA
+@stack . . . . . . . . . . . . .	Text   	 DGROUP
+Chans  . . . . . . . . . . . . .	L Near	 00D4	  _TEXT
+CmdGetChan . . . . . . . . . . .	L Near	 057C	  _TEXT
+CmdGetClocks . . . . . . . . . .	L Near	 0586	  _TEXT
+CmdGetGlitches . . . . . . . . .	L Near	 05C0	  _TEXT
+CmdGetJoy  . . . . . . . . . . .	L Near	 062A	  _TEXT
+CmdGetSamples  . . . . . . . . .	L Near	 0558	  _TEXT
+CmdPause . . . . . . . . . . . .	L Near	 0540	  _TEXT
+CmdSample  . . . . . . . . . . .	L Near	 04BC	  _TEXT
+CmdSetDAC  . . . . . . . . . . .	L Near	 05DE	  _TEXT
+CmdSetGainCA . . . . . . . . . .	L Near	 050A	  _TEXT
+CmdSetGainLO . . . . . . . . . .	L Near	 0520	  _TEXT
+CmdSetLCD  . . . . . . . . . . .	L Near	 0624	  _TEXT
+CmdSetMask . . . . . . . . . . .	L Near	 04C0	  _TEXT
+CmdSetRateCA . . . . . . . . . .	L Near	 04C6	  _TEXT
+CmdSetRateLO . . . . . . . . . .	L Near	 04E8	  _TEXT
+CmdSetSV . . . . . . . . . . . .	L Near	 0536	  _TEXT
+CmdSetVCO  . . . . . . . . . . .	L Near	 054A	  _TEXT
+Commands . . . . . . . . . . . .	L Near	 00B4	  _TEXT
+DAC_bit  . . . . . . . . . . . .	L Near	 0632	  _TEXT
+Entry  . . . . . . . . . . . . .	L Near	 0000	  _TEXT
+GET_CHAN_IQ  . . . . . . . . . .	Number	 0001h
+GET_JOY  . . . . . . . . . . . .	Number	 0010h
+GET_LOG  . . . . . . . . . . . .	Number	 0020h
+GET_MEMORY . . . . . . . . . . .	Number	 0010h
+GET_SAMPLES  . . . . . . . . . .	Number	 0008h
+GET_SNAPSHOT . . . . . . . . . .	Number	 0004h
+GET_SRQ  . . . . . . . . . . . .	Number	 0002h
+GetChanPtr . . . . . . . . . . .	L Near	 02E4	  _TEXT
+GetCount . . . . . . . . . . . .	L Near	 02EC	  _TEXT
+GetPower . . . . . . . . . . . .	L Near	 0312	  _TEXT
+JTAG_RDY . . . . . . . . . . . .	Number	 0002h
+JTAG_RST . . . . . . . . . . . .	Number	 0001h
+JTAG_RX  . . . . . . . . . . . .	Number	 0008h
+JTAG_TX  . . . . . . . . . . . .	Number	 0001h
+LOG_RST  . . . . . . . . . . . .	Number	 0080h
+MAX_BITS . . . . . . . . . . . .	Number	 0040h
+Main . . . . . . . . . . . . . .	L Near	 000A	  _TEXT
+Method . . . . . . . . . . . . .	L Near	 0320	  _TEXT
+NUM_CHANS  . . . . . . . . . . .	Number	 000Ch
+NavEdge  . . . . . . . . . . . .	L Near	 03D6	  _TEXT
+NavSame  . . . . . . . . . . . .	L Near	 03E2	  _TEXT
+NavSave  . . . . . . . . . . . .	L Near	 03FE	  _TEXT
+PUT_LOG  . . . . . . . . . . . .	Number	 0040h
+Ready  . . . . . . . . . . . . .	L Near	 0008	  _TEXT
+SAMPLER_RST  . . . . . . . . . .	Number	 0004h
+SET_CA_NCO . . . . . . . . . . .	Number	 0010h
+SET_CHAN . . . . . . . . . . . .	Number	 0008h
+SET_DAC  . . . . . . . . . . . .	Number	 0100h
+SET_LCD  . . . . . . . . . . . .	Number	 0100h
+SET_LO_NCO . . . . . . . . . . .	Number	 0020h
+SET_MASK . . . . . . . . . . . .	Number	 0004h
+SET_PAUSE  . . . . . . . . . . .	Number	 0080h
+SET_SV . . . . . . . . . . . . .	Number	 0040h
+SET_VCO  . . . . . . . . . . . .	Number	 0002h
+Shifted  . . . . . . . . . . . .	L Near	 06C6	  _TEXT
+UploadChan . . . . . . . . . . .	L Near	 0460	  _TEXT
+UploadClock  . . . . . . . . . .	L Near	 048E	  _TEXT
+UploadGlitches . . . . . . . . .	L Near	 04B8	  _TEXT
+UploadSamples  . . . . . . . . .	L Near	 043E	  _TEXT
+chan . . . . . . . . . . . . . .	Number	 000Ch
+op_add64 . . . . . . . . . . . .	Number	 A66Eh
+op_addi  . . . . . . . . . . . .	Number	 8700h
+op_add . . . . . . . . . . . . .	Number	 8800h
+op_and . . . . . . . . . . . . .	Number	 8B00h
+op_branchNZ  . . . . . . . . . .	Number	 B001h
+op_branchZ . . . . . . . . . . .	Number	 B000h
+op_branch  . . . . . . . . . . .	Number	 A001h
+op_call  . . . . . . . . . . . .	Number	 A000h
+op_drop  . . . . . . . . . . . .	Number	 8500h
+op_dup . . . . . . . . . . . . .	Number	 8100h
+op_extend  . . . . . . . . . . .	Number	 A6C8h
+op_fetch16 . . . . . . . . . . .	Number	 9400h
+op_fetch32 . . . . . . . . . . .	Number	 A644h
+op_fetch64 . . . . . . . . . . .	Number	 A63Ch
+op_mult  . . . . . . . . . . . .	Number	 8A00h
+op_nop . . . . . . . . . . . . .	Number	 8000h
+op_not . . . . . . . . . . . . .	Number	 8E00h
+op_or  . . . . . . . . . . . . .	Number	 8C00h
+op_over  . . . . . . . . . . . .	Number	 8400h
+op_r_from  . . . . . . . . . . .	Number	 9D00h
+op_rdBit . . . . . . . . . . . .	Number	 9300h
+op_rdReg . . . . . . . . . . . .	Number	 C000h
+op_ret . . . . . . . . . . . . .	Number	 8080h
+op_rot . . . . . . . . . . . . .	Number	 8600h
+op_r . . . . . . . . . . . . . .	Number	 9C00h
+op_shl64_n . . . . . . . . . . .	Number	 A67Ah
+op_shl64 . . . . . . . . . . . .	Number	 9000h
+op_shl . . . . . . . . . . . . .	Number	 9100h
+op_shr . . . . . . . . . . . . .	Number	 9200h
+op_store16 . . . . . . . . . . .	Number	 9500h
+op_store32 . . . . . . . . . . .	Number	 A656h
+op_store64 . . . . . . . . . . .	Number	 A652h
+op_sub . . . . . . . . . . . . .	Number	 8900h
+op_swap16  . . . . . . . . . . .	Number	 8300h
+op_swap64  . . . . . . . . . . .	Number	 A664h
+op_swap  . . . . . . . . . . . .	Number	 8200h
+op_to_r  . . . . . . . . . . . .	Number	 9E00h
+op_wrEvt . . . . . . . . . . . .	Number	 E000h
+op_wrReg . . . . . . . . . . . .	Number	 D000h
+op_xor . . . . . . . . . . . . .	Number	 8D00h
+opt_cin  . . . . . . . . . . . .	Number	 0040h
+opt_ret  . . . . . . . . . . . .	Number	 0080h
+
+	   0 Warnings
+	   0 Errors

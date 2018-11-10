@@ -1,0 +1,81 @@
+##########################################################################
+## Homemade GPS Receiver
+## Copyright (C) 2013 Andrew Holme
+##
+## This program is free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 3 of the License, or
+## (at your option) any later version.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this program.  If not, see <http://www.gnu.org/licenses/>.
+##
+## http://www.aholme.co.uk/GPS/Main.htm
+##########################################################################
+
+INST "gps/sample" LOC = "P1";
+
+INST "fracn/pfd/vco_tff" LOC = "SLICE_X1Y19";
+INST "fracn/pfd/vco_dff" LOC = "SLICE_X0Y18";
+INST "fracn/pfd/ref_tff" LOC = "SLICE_X0Y19";
+INST "fracn/pfd/ref_dff" LOC = "SLICE_X1Y18";
+
+INST "fracn/vco_bufgce"    LOC = "BUFGMUX7";
+INST "fracn/vco_div*4*"    LOC = "SLICE_X22Y62";
+INST "fracn/vco_div*2*"    LOC = "SLICE_X22Y61";
+INST "fracn/vco_div*0*"    LOC = "SLICE_X22Y60";
+INST "fracn/vco_gate"      LOC = "SLICE_X23Y61";
+INST "fracn/msh_gate"      LOC = "SLICE_X26Y62";
+INST "fracn/dither*"       LOC = "SLICE_X10Y32:SLICE_X45Y50";
+
+NET "VCO_P" LOC = "P127";
+NET "VCO_N" LOC = "P128";
+NET "XCO_P" LOC = "P55";
+NET "XCO_N" LOC = "P56";
+NET "PD_P"  LOC = "P27";
+NET "PD_N"  LOC = "P28";
+NET "IF_P"  LOC = "P1";
+NET "IF_N"  LOC = "P2";
+
+NET "JOY_DOWN"  LOC = "P103" | PULLUP;
+NET "JOY_LEFT"  LOC = "P104" | PULLUP;
+NET "JOY_RIGHT" LOC = "P105" | PULLUP;
+NET "JOY_PUSH"  LOC = "P107" | PULLUP;
+NET "JOY_UP"    LOC = "P108" | PULLUP;
+
+NET "LCD_RS"   LOC = "P73" | SLOW | DRIVE=2;
+NET "LCD_EN"   LOC = "P74" | SLOW | DRIVE=2;
+NET "LCD_D<4>" LOC = "P76" | SLOW | DRIVE=2;
+NET "LCD_D<5>" LOC = "P77" | SLOW | DRIVE=2;
+NET "LCD_D<6>" LOC = "P78" | SLOW | DRIVE=2;
+NET "LCD_D<7>" LOC = "P79" | SLOW | DRIVE=2;
+
+NET "RPI_CS_N<0>" LOC = "P100" | PULLUP;
+NET "RPI_CS_N<1>" LOC = "P102" | PULLUP;
+NET "RPI_SCLK" LOC = "P99" | PULLDOWN;
+NET "RPI_MOSI" LOC = "P65" | PULLDOWN;
+NET "RPI_MISO" LOC = "P58" | SLOW | DRIVE=2;
+
+NET "DAC_MOSI" LOC = "P40" | SLOW | DRIVE=2;
+NET "DAC_SCLK" LOC = "P41" | SLOW | DRIVE=2;
+NET "DAC_CS_N" LOC = "P46" | SLOW | DRIVE=2;
+
+NET "VCO_P" TNM_NET = "TNM_VCO_P";
+NET "XCO_P" TNM_NET = "TNM_XCO_P";
+
+TIMESPEC "TS_VCO_P" = PERIOD "TNM_VCO_P"   5.0 ns HIGH 50 %;
+TIMESPEC "TS_XCO_P" = PERIOD "TNM_XCO_P" 100.0 ns HIGH 50 %;
+
+NET "fracn/mash_slot" TNM_NET = "TNM_mash_slot";
+NET "fracn/vco_phase" TNM_NET = "TNM_vco_phase";
+
+TIMESPEC "TS_mash_slot" = PERIOD "TNM_mash_slot"  100 ns HIGH  1 %;
+TIMESPEC "TS_vco_phase" = PERIOD "TNM_vco_phase"  100 ns HIGH  1 %;
+
+NET "vco_clk"        MAXSKEW = 1168 ps;
+NET "fracn/vco_gate" MAXDELAY = 2.5 ns;
