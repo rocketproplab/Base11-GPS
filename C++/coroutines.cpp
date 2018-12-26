@@ -20,6 +20,7 @@
 
 #include <setjmp.h>
 #include <time.h>
+#include <stdio.h>
 
 #define STACK_SIZE 8192
 #define MAX_TASKS 20
@@ -40,7 +41,9 @@ static unsigned Signals;
 
 void NextTask() {
     static int id;
+    printf("Next Taks (id = %d)\n", id);
     if (setjmp(Tasks[id].jb)) return;
+    printf("Set jump state of %d\n", id);
     if (++id==NumTasks) id=0;
     longjmp(Tasks[id].jb, 1);
 }
@@ -67,6 +70,7 @@ void TimerWait(unsigned ms) {
 }
 
 void EventRaise(unsigned sigs) {
+  printf("Got event %d\n", sigs);
     Signals |= sigs;
 }
 

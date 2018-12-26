@@ -98,8 +98,12 @@ int main(int /* argc */, char * /* argv */ []) {
         if (joy!=0 && prev==0) EventRaise(joy);
     }
 
+    printf("Exited Joystick check\n");
+
     SearchFree();
     peri_free();
+
+    printf("Shutting down\n");
 
     return !EventCatch(EVT_SHUTDOWN);
 }

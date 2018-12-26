@@ -105,13 +105,6 @@ int peri_init() {
     GP_FSEL1 = (4<<(3*(FPGA_MOSI-10))) +
                (4<<(3*(FPGA_SCLK-10)));
 
-    while(true){
-      GP_SET0 = 1<<FPGA_PROG;
-      usleep(1000*1000);
-      GP_CLR0 = 1<<FPGA_PROG;
-      usleep(1000*1000);
-    }
-
     // Reset FPGA
     GP_SET0 = 1<<FPGA_PROG;
     while ((GP_LEV0 & (1<<FPGA_INIT_B)) != 0);
