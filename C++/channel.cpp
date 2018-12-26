@@ -265,7 +265,7 @@ void CHANNEL::SignalLost() {
     // Re-enable search for this SV
     SearchEnable(sv);
 
-    UserStat(STAT_POWER, 0, ch); //Flatten bar graph
+    // UserStat(STAT_POWER, 0, ch); //Flatten bar graph
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -298,7 +298,7 @@ void CHANNEL::CheckPower() {
         if (mean>HYST_HI) SetGainAdj(-1); // half loop gain
     }
 
-    UserStat(STAT_POWER, mean, ch);
+    // UserStat(STAT_POWER, mean, ch);
 }
 
 float CHANNEL::GetPower() {

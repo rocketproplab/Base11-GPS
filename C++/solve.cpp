@@ -278,7 +278,7 @@ static int Solve(int chans, double *x_n, double *y_n, double *z_n, double *t_bia
         *t_bias += dt;
     }
 
-    UserStat(STAT_TIME, t_rx);
+    // UserStat(STAT_TIME, t_rx);
     return j;
 }
 
@@ -317,9 +317,9 @@ void SolveTask() {
         int iter = Solve(chans, &x, &y, &z, &t_b);
         if (iter==MAX_ITER) continue;
         LatLonAlt(x, y, z, lat, lon, alt);
-        UserStat(STAT_LAT, lat*180/PI);
-        UserStat(STAT_LON, lon*180/PI);
-        UserStat(STAT_ALT, alt, chans);
+        // UserStat(STAT_LAT, lat*180/PI);
+        // UserStat(STAT_LON, lon*180/PI);
+        // UserStat(STAT_ALT, alt, chans);
         printf(
             "\n%d,%3d,%10.6f,"
 //          "%10.0f,%10.0f,%10.0f,"

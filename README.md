@@ -9,3 +9,12 @@ This is the code of RPL's GPS system. There are three components to this code.
 FPGA Programming
 ===
 The FPGA is programmed by the Raspberry Pi every time on startup.
+
+
+Raspberry PI
+===
+
+Install
+---
+
+1. Install the Raspberry [this link](https://stackoverflow.com/questions/19162072/).

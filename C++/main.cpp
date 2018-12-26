@@ -57,11 +57,15 @@ int main(int /* argc */, char * /* argv */ []) {
     SPI_MISO miso;
     int ret;
 
+    printf("Starting\n");
+
     ret = peri_init();
     if (ret) {
         printf("peri_init() returned %d\n", ret);
         return ret;
     }
+
+    printf("Peripherals Initialized!\n");
 
     ret = fpga_init();
     if (ret) {
@@ -69,11 +73,15 @@ int main(int /* argc */, char * /* argv */ []) {
         return ret;
     }
 
+    printf("FPGA Initialized!\n");
+
     ret = SearchInit();
     if (ret) {
         printf("SearchInit() returned %d\n", ret);
         return ret;
     }
+
+    printf("Search Initialized!\n");
 
     spi_set(CmdSetDAC, 2560); // Put TCVCXO bang on 10.000000 MHz
 
@@ -81,6 +89,8 @@ int main(int /* argc */, char * /* argv */ []) {
     for(int i=0; i<NUM_CHANS; i++) CreateTask(ChanTask);
     CreateTask(SolveTask);
     CreateTask(UserTask);
+
+    printf("Started!\n");
 
     for (int joy, prev=0; !EventCatch(EVT_EXIT); prev=joy) {
         spi_get(CmdGetJoy, &miso, 1);

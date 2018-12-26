@@ -21,6 +21,8 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <stdio.h>
+
 
 #include "gps.h"
 
@@ -88,6 +90,8 @@ int peri_init() {
     if (!gpio) return -2;
     if (!spi)  return -3;
 
+    printf("Mem mapped!\n");
+
     SPI_CLK = 32;   // SCLK ~ 8 MHz
     SPI_CS = 3<<4;  // Reset
 
@@ -100,6 +104,13 @@ int peri_init() {
     // GPIO[19:10]
     GP_FSEL1 = (4<<(3*(FPGA_MOSI-10))) +
                (4<<(3*(FPGA_SCLK-10)));
+
+    while(true){
+      GP_SET0 = 1<<FPGA_PROG;
+      usleep(1000*1000);
+      GP_CLR0 = 1<<FPGA_PROG;
+      usleep(1000*1000);
+    }
 
     // Reset FPGA
     GP_SET0 = 1<<FPGA_PROG;

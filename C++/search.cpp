@@ -241,7 +241,7 @@ void SearchTask() {
             Sample();
             snr = Correlate(sv, &lo_shift, &ca_shift);
 
-            UserStat(STAT_PRN, snr, Sats[sv].prn);
+            // UserStat(STAT_PRN, snr, Sats[sv].prn);
 
             if (snr<25)
                 continue;

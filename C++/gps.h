@@ -125,4 +125,3 @@ enum STAT {
 };
 
 void UserTask();
-void UserStat(STAT st, double, int=0);
