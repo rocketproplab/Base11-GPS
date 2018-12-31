@@ -41,44 +41,44 @@ static unsigned long seceretKey;
 
 unsigned long rotateRight(unsigned long x, int n){
 
-  // if n=4, x=0x12345678:
+        // if n=4, x=0x12345678:
 
-  // shifted = 0x12345678 >> 4 = 0x01234567
-  unsigned long shifted  = x >> n;
+        // shifted = 0x12345678 >> 4 = 0x01234567
+        unsigned long shifted  = x >> n;
 
-  // rot_bits = (0x12345678 << 28) = 0x80000000
-  unsigned long rot_bits = x << ( 32 - n );
+        // rot_bits = (0x12345678 << 28) = 0x80000000
+        unsigned long rot_bits = x << ( 32 - n );
 
-  // combined = 0x80000000 | 0x01234567 = 0x81234567
-  unsigned long combined = shifted | rot_bits;
+        // combined = 0x80000000 | 0x01234567 = 0x81234567
+        unsigned long combined = shifted | rot_bits;
 
-  return combined;
+        return combined;
 }
 
 void InitTasks(){
-  setjmp(seceret.jb);
-  printf("Size of long %d\n", sizeof(unsigned long));
-  unsigned long pcMangle = (unsigned long) seceret.pc;
-  unsigned long pcActual = (unsigned long) ( InitTasks + SETJMP_OFFSET );
-  // pcMangle   = rotateRight(pcMangle, 2 * 8 + 1);
-  seceretKey = ((unsigned long )pcMangle) ^ pcActual;
+        setjmp(seceret.jb);
+        printf("Size of long %d\n", sizeof(unsigned long));
+        unsigned long pcMangle = (unsigned long) seceret.pc;
+        unsigned long pcActual =  (unsigned long) InitTasks + SETJMP_OFFSET;
+        // pcMangle   = rotateRight(pcMangle, 2 * 8 + 1);
+        seceretKey = ((unsigned long )pcMangle) ^ pcActual;
 }
 
 unsigned long _rotl(unsigned long value, int shift){
-  if(( shift &= sizeof( value ) * 8 - 1 ) == 0)
-    return value;
-  return ( value << shift ) | ( value >> ( sizeof( value ) * 8 - shift ));
+        if(( shift &= sizeof( value ) * 8 - 1 ) == 0)
+                return value;
+        return ( value << shift ) | ( value >> ( sizeof( value ) * 8 - shift ));
 }
 
 unsigned long convertToSeceret(void *pc){
-  unsigned long mangled = ((unsigned long) pc ) ^ seceretKey;
-  // unsigned long shifted = _rotl((unsigned long) mangled, 2 * 8 + 1);
-  return mangled;
+        unsigned long mangled = ((unsigned long) pc ) ^ seceretKey;
+        // unsigned long shifted = _rotl((unsigned long) mangled, 2 * 8 + 1);
+        return mangled;
 }
 
 unsigned long convertFromMangled(void *mangled){
-  // unsigned long mangled = rotateRight((unsigned long) shifted, 2 * 8 + 1);
-  return ((unsigned long)mangled) ^ seceretKey;
+        // unsigned long mangled = rotateRight((unsigned long) shifted, 2 * 8 + 1);
+        return ((unsigned long)mangled) ^ seceretKey;
 }
 
 static TASK Tasks[MAX_TASKS];
@@ -94,10 +94,9 @@ void NextTask() {
 
 void CreateTask(void (*entry)()) {
         TASK *t = Tasks + NumTasks++;
-        t->pc = (void (*)()) convertToSeceret((void *)entry);
+        t->pc = (void (*)())convertToSeceret((void *)entry);
         int* stackStart = t->stk + STACK_SIZE-2;
         t->sp = (void *) convertToSeceret((void *)stackStart);
-        // t->fp = t->sp;
 }
 
 unsigned Microseconds(void) {
