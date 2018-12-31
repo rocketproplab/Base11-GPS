@@ -71,6 +71,8 @@ const double F = -4.442807633e-10; // -2*sqrt(MU)/pow(C,2)
 //////////////////////////////////////////////////////////////
 // Coroutines
 
+void InitTasks();
+
 unsigned EventCatch(unsigned);
 void     EventRaise(unsigned);
 void     NextTask();

@@ -59,6 +59,8 @@ int main(int /* argc */, char * /* argv */ []) {
 
     printf("Starting\n");
 
+    InitTasks();
+
     ret = peri_init();
     if (ret) {
         printf("peri_init() returned %d\n", ret);
