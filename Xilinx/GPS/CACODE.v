@@ -18,11 +18,12 @@
 // http://www.aholme.co.uk/GPS/Main.htm
 //////////////////////////////////////////////////////////////////////////
 
+//http://lea.hamradio.si/~s53mv/navsats/theory.html figure 8 has an explination
 module CACODE (
     input       rst,
     input       clk,
-    input [3:0] T0, T1,
-    input       rd,
+    input [3:0] T0, T1, //Bit selects for the codes
+    input       rd,     //read next code
 
     output            chip,
     output reg [10:1] g1, g2

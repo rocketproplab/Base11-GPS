@@ -43,9 +43,9 @@ module DEMOD (
               SET_PAUSE  = 7;
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Select SV
+    // Select SV (Satellite Vehicle)
 
-    reg [3:0] T0, T1;
+    reg [3:0] T0, T1; //T0 & T1 used in C/A code generation
 
     always @ (posedge clk)
         if (wrReg && op[SET_SV])
@@ -85,7 +85,7 @@ module DEMOD (
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     // C/A code and epoch
 
-    wire       ca_e;
+    wire       ca_e;    //C/A code output
     wire [9:0] g1_e;
     reg  [9:0] g1_p;
     reg        ca_p, ms1, ca_l = 0;
