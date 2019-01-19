@@ -24,6 +24,12 @@
 #include <math.h>
 #include <string.h>
 
+#include <stdlib.h>
+#include <unistd.h>     // UNIX standard function definitions
+#include <fcntl.h>      // File control definitions
+#include <errno.h>      // Error number definitions
+#include <termios.h>    // POSIX terminal control definitions
+
 #include "Print.h"
 #include "gps.h"
 #include "spi.h"
@@ -38,7 +44,13 @@ struct GPSInfo {
   bool update;
 }
 
+struct GPSDebug {
+  int sVCount;
+  double accuracy;
+}
+
 static struct GPSInfo UserState = {0};
+static struct GPSDebug UserDbg = {0};
 
 static int USB = 0;
 
@@ -46,7 +58,7 @@ static int USB = 0;
 
 //From https://stackoverflow.com/questions/18108932/linux-c-serial-port-reading-writing
 void initUser(){
-  int USB = open( "/dev/ttyUSB0", O_RDWR| O_NOCTTY );
+  USB = open( "/dev/ttyUSB0", O_RDWR| O_NOCTTY );
 
   struct termios tty;
   struct termios tty_old;
@@ -138,44 +150,59 @@ void setGPSState(double x, double y, double z, double t_b, double lat, double lo
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 void sendSentnece(char * sentence ){
+  int checksum = computeChecksum(sentnece);
+  int len = strlen(sentence);
+  sprintf(sentence + len, "*%02x\n", checksum);
 
+  int n_written = 0,
+      spot = 0;
+  do {
+      n_written = write( USB, &sentence[spot], 1 );
+      spot += n_written;
+  } while (sentence[spot-1] != '\n' && n_written > 0);
+}
+
+int computeChecksum(char *sentence){
+  int checksum = 0;
+  int len = strlen(sentence);
+  for(int i = 0; i<len; i++){
+    checksum ^= sentence[i];
+  }
+
+  return checksum;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
+void sendGGA(){
+  char buff[BUF_SIZE];
+  char *pbuff =  &buff;
+  pbuff += sprintf(pbuff, "$GPGGA,");               //MSG ID
+  pbuff += sprintf(pbuff, "%d,", UserState.t_b);    //UTC
+  pbuff += sprintf(pbuff, "%d,", UserState.lat);    //Lat
+  pbuff += sprintf(pbuff, "N,");                    //N,S
+  pbuff += sprintf(pbuff, "%d,", UserState.lon);    //Long
+  pbuff += sprintf(pbuff, "W,1,");                  //W/E, Qualiy
+  pbuff += sprintf(pbuff, "%d,", UserDbg.sVCount);  //SV Count
+  pbuff += sprintf(pbuff, "1.2,");                  //DOP
+  pbuff += sprintf(pbuff, "%d,", UserState.alt);    //Altitude
+  pbuff += sprintf(pbuff, "M,");                    //Height Units
+  pbuff += sprintf(pbuff, "%d,", UserDbg.accuracy); //Acurracy of GPS
+  pbuff += sprintf(pbuff, "M,0,0");                 //Rest of non important data
+
+  sendSentence(&buff);
+
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
 void UserTask() {
-    // DISPLAY lcd;
-    // int page=0;
-    //
-    // lcd.drawForm(-2);
-    // for (int i=0; i<30; i++) {
-    //     TimerWait(100);
-    //     if (EventCatch(JOY_MASK)) {
-    //         EventRaise(EVT_EXIT);
-    //         for (;;) NextTask();
-    //     }
-    // }
-    // lcd.drawForm(page);
-    // for (;;) {
-    //     switch (EventCatch(JOY_MASK)) {
-    //         case JOY_UP:
-    //             if (page>0) lcd.drawForm(--page);
-    //             break;
-    //         case JOY_DOWN:
-    //             if (page<3) lcd.drawForm(++page);
-    //             break;
-    //         case JOY_PUSH:
-    //             lcd.drawForm(-1);
-    //             EventRaise(EVT_EXIT+EVT_SHUTDOWN);
-    //             for (;;) NextTask();
-    //
-    //     }
-    //     lcd.drawData(page);
-    //     NextTask();
-    // }
+    
     for(;;){
       if(UserState.update){
-
+        sendGGA();
       }
+      NextTask();
     }
 }
