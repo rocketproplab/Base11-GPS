@@ -128,3 +128,14 @@ enum STAT {
 };
 
 void UserTask();
+void setGPSState(double x, double y, double z, double t_b, double lat, double lon, double alt);
+
+// All the NEMA-0183 codes that are used
+enum NEMACode {
+  GGA,    //Global Positioning System Fix Data (This is the important one)
+  GLL,    //Geographic position, latitude and longitude (and time)
+  GSV,    //Satellites in view
+  HDT,    //Heading, true north
+  VTG,    //Track made good and ground speed
+  XTE     //Cross-track error
+}

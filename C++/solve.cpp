@@ -328,5 +328,7 @@ void SolveTask() {
             chans, iter, t_b,
 //          x, y, z,
             lat*180/PI, lon*180/PI, alt);
+
+        setGPSState(x, y, z, t_b, lat, lon, alt);
     }
 }

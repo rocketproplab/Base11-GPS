@@ -22,11 +22,68 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 
 #include "Print.h"
 #include "gps.h"
 #include "spi.h"
 
+#define EQUALS_EPSILON 0.0000001
+#define GPS_ID "GP"
+#define GPS_ID_LEN 2
+#define NEMA_DELIM ","
+
+struct GPSInfo {
+  double x, y, z, t_b, lat, lon, alt;
+  bool update;
+}
+
+static struct GPSInfo UserState = {0};
+
+static int USB = 0;
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//From https://stackoverflow.com/questions/18108932/linux-c-serial-port-reading-writing
+void initUser(){
+  int USB = open( "/dev/ttyUSB0", O_RDWR| O_NOCTTY );
+
+  struct termios tty;
+  struct termios tty_old;
+  memset (&tty, 0, sizeof tty);
+
+  /* Error Handling */
+  if ( tcgetattr ( USB, &tty ) != 0 ) {
+     std::cout << "Error " << errno << " from tcgetattr: " << strerror(errno) << std::endl;
+  }
+
+  /* Save old tty parameters */
+  tty_old = tty;
+
+  /* Set Baud Rate */
+  cfsetospeed (&tty, (speed_t)B9600);
+  cfsetispeed (&tty, (speed_t)B9600);
+
+  /* Setting other Port Stuff */
+  tty.c_cflag     &=  ~PARENB;            // Make 8n1
+  tty.c_cflag     &=  ~CSTOPB;
+  tty.c_cflag     &=  ~CSIZE;
+  tty.c_cflag     |=  CS8;
+
+  tty.c_cflag     &=  ~CRTSCTS;           // no flow control
+  tty.c_cc[VMIN]   =  1;                  // read doesn't block
+  tty.c_cc[VTIME]  =  5;                  // 0.5 seconds read timeout
+  tty.c_cflag     |=  CREAD | CLOCAL;     // turn on READ & ignore ctrl lines
+
+  /* Make raw */
+  cfmakeraw(&tty);
+
+  /* Flush Port, then applies attributes */
+  tcflush( USB, TCIFLUSH );
+  if ( tcsetattr ( USB, TCSANOW, &tty ) != 0) {
+     std::cout << "Error " << errno << " from tcsetattr" << std::endl;
+  }
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -52,6 +109,37 @@ struct UMS {
 };
 
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+bool epsilonEquals(double val1, double val2){
+  double diff = (val1 - val2);
+  diff = diff > 0 ? diff : -diff;
+  return  diff > EQUALS_EPSILON;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//Set the GPS state to the new state, checks if there are actually any changes
+void setGPSState(double x, double y, double z, double t_b, double lat, double lon, double alt){
+  bool needsUpdate = !epsilonEquals(x, UserState.x);
+  needsUpdate |= !epsilonEquals(y, UserState.y);
+  needsUpdate |= !epsilonEquals(z, UserState.z);
+  needsUpdate |= !epsilonEquals(t_b, UserState.t_b);
+  needsUpdate |= !epsilonEquals(lat, UserState.lat);
+  needsUpdate |= !epsilonEquals(lon, UserState.lon);
+  needsUpdate |= !epsilonEquals(alt, UserState.alt);
+
+  if(needsUpdate){
+    UserState = {x, y, z, t_b, lat, lon, alt, true};
+  }
+
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+void sendSentnece(char * sentence ){
+
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -85,4 +173,9 @@ void UserTask() {
     //     lcd.drawData(page);
     //     NextTask();
     // }
+    for(;;){
+      if(UserState.update){
+
+      }
+    }
 }
