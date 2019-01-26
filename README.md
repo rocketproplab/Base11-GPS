@@ -8,9 +8,8 @@ This is the code of RPL's GPS system. There are three components to this code.
 
 ## FPGA Programming
 
-The FPGA is programmed by the Raspberry Pi every time on startup. The original
-code is found in the Verilog folder while the working code is found in the
-Xilinx folder.
+The FPGA is programmed by the Raspberry Pi every time on startup. The Verilog is
+found in the Xilinx folder.
 
 
 ## Raspberry PI
