@@ -23,7 +23,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <stdio.h>
-
+#include <stdint.h>
+#include <stdbool.h>
 
 #include "gps.h"
 
@@ -248,7 +249,7 @@ void peri_spi(SPI_SEL sel, char *mosi, int txlen, char *miso, int rxlen) {
 // WARNING: This has not been tested, it might not work. I really hope it does...
 
 // to test this, first try reading from the first register in the beginning when the values are known
-peri_minispi(bool rw, char reg_adr, short *mosi, short *miso) {
+void peri_minispi(bool rw, char reg_adr, short *mosi, short *miso) {
     int rxlen, txlen;
     int rx = 0, tx = 0;
     
