@@ -110,7 +110,7 @@ int peri_init() {
     GP_SET0 = 1<<FPGA_PROG;
     while ((GP_LEV0 & (1<<FPGA_INIT_B)) != 0);
     GP_CLR0 = 1<<FPGA_PROG;
-    while ((GP_LEV0 & (1<<FPGA_INIT_B)) == 0);
+    //while ((GP_LEV0 & (1<<FPGA_INIT_B)) == 0); //TODO uncomment when attached to GPS
 
     return 0;
 }

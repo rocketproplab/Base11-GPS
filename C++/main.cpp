@@ -91,7 +91,7 @@ int main(int /* argc */, char * /* argv */ []) {
     CreateTask(SearchTask);
     for(int i=0; i<NUM_CHANS; i++) CreateTask(ChanTask);
     CreateTask(SolveTask);
-    // CreateTask(UserTask);
+    CreateTask(UserTask);
 
     printf("Started!\n");
 
