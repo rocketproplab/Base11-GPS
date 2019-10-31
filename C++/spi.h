@@ -17,7 +17,7 @@
 //
 // http://www.aholme.co.uk/GPS/Main.htm
 //////////////////////////////////////////////////////////////////////////
-
+#pragma once
 #include <inttypes.h>
 
 enum SPI_CMD { // Embedded CPU commands
@@ -36,7 +36,7 @@ enum SPI_CMD { // Embedded CPU commands
     CmdGetGlitches,
     CmdSetDAC,
     CmdSetLCD,
-    CmdGetJoy
+    CmdGetJoy,
 };
 
 union SPI_MOSI {
