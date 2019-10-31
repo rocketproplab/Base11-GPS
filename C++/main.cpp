@@ -43,6 +43,7 @@ int fpga_init() {
 
     fclose(fp);
 
+
     fp = fopen("44.com", "rb"); // Embedded CPU binary
     if (!fp) return -2;
 
@@ -55,6 +56,9 @@ int fpga_init() {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 int main(int /* argc */, char * /* argv */ []) {
+    // MAX2771 register read test
+    printf("testing SPI1 code. Attempting to read from register 0 on MAX2771. Output should be ");
+    
     SPI_MISO miso;
     int ret;
 
@@ -85,6 +89,14 @@ int main(int /* argc */, char * /* argv */ []) {
     }
 
     printf("Search Initialized!\n");
+    
+    //////////////////////////////////////////////////////////////
+    // Test if SPI1 read works
+    short test_mosi[2], test_miso[2];
+    printf("Testing SPI1 read functionality...\n");
+    peri_minispi(true, 0, test_mosi, test_miso);
+    printf("Values read: %x", test_miso);
+    //////////////////////////////////////////////////////////////
 
     spi_set(CmdSetDAC, 2560); // Put TCVCXO bang on 10.000000 MHz
 

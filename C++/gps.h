@@ -89,6 +89,7 @@ enum SPI_SEL {
     SPI_CS1=1   // Host messaging
 };
 
+
 int  peri_init();
 void peri_free();
 void peri_spi(SPI_SEL sel, char *mosi, int txlen, char *miso, int rxlen);
