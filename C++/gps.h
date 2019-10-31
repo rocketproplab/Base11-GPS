@@ -18,6 +18,7 @@
 //
 // Original info found at http://www.aholme.co.uk/GPS/Main.htm
 //////////////////////////////////////////////////////////////////////////
+#pragma once
 
 #include <inttypes.h>
 
@@ -139,4 +140,5 @@ enum NEMACode {
   HDT,    //Heading, true north
   VTG,    //Track made good and ground speed
   XTE     //Cross-track error
-}
+};
+

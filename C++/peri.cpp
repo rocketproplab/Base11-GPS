@@ -210,10 +210,9 @@ int peri_init() {
     GP_SET0 = 1<<FPGA_PROG + 1<<5; // set pin 4 (output to FPGA), set pin 5 (not shutdown pin) to 1
     while ((GP_LEV0 & (1<<FPGA_INIT_B)) != 0); // wait until SPI0_MISO is zero
     GP_CLR0 = 1<<FPGA_PROG; // then clear pin 4
-    while ((GP_LEV0 & (1<<FPGA_INIT_B)) == 0); // wait until SPI0_MISO is one
+    //while ((GP_LEV0 & (1<<FPGA_INIT_B)) == 0); //TODO uncomment when attached to GPS
 
-    // Probably will add code to reset MAX2771 chip here at some point but I don't know we'll see how things go
-
+    // TODO: add code to reset MAX2771 chip here, if needed
     return 0;
 }
 

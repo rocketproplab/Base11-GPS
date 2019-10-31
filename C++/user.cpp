@@ -29,6 +29,7 @@
 #include <fcntl.h>      // File control definitions
 #include <errno.h>      // Error number definitions
 #include <termios.h>    // POSIX terminal control definitions
+#include <iostream>
 
 #include "Print.h"
 #include "gps.h"
@@ -42,12 +43,12 @@
 struct GPSInfo {
   double x, y, z, t_b, lat, lon, alt;
   bool update;
-}
+};
 
 struct GPSDebug {
   int sVCount;
   double accuracy;
-}
+};
 
 static struct GPSInfo UserState = {0};
 static struct GPSDebug UserDbg = {0};
@@ -148,9 +149,10 @@ void setGPSState(double x, double y, double z, double t_b, double lat, double lo
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
+int computeChecksum(char *sentence);
 
-void sendSentnece(char * sentence ){
-  int checksum = computeChecksum(sentnece);
+void sendSentence(char * sentence ){
+  int checksum = computeChecksum(sentence);
   int len = strlen(sentence);
   sprintf(sentence + len, "*%02x\n", checksum);
 
@@ -175,8 +177,8 @@ int computeChecksum(char *sentence){
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 void sendGGA(){
-  char buff[BUF_SIZE];
-  char *pbuff =  &buff;
+  char buff[BUFSIZ];
+  char *pbuff =  buff;
   pbuff += sprintf(pbuff, "$GPGGA,");               //MSG ID
   pbuff += sprintf(pbuff, "%d,", UserState.t_b);    //UTC
   pbuff += sprintf(pbuff, "%d,", UserState.lat);    //Lat
@@ -190,7 +192,7 @@ void sendGGA(){
   pbuff += sprintf(pbuff, "%d,", UserDbg.accuracy); //Acurracy of GPS
   pbuff += sprintf(pbuff, "M,0,0");                 //Rest of non important data
 
-  sendSentence(&buff);
+  sendSentence(buff);
 
 }
 
@@ -198,7 +200,7 @@ void sendGGA(){
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 void UserTask() {
-    
+
     for(;;){
       if(UserState.update){
         sendGGA();

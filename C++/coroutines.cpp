@@ -37,7 +37,7 @@ struct TASK {
         union {
                 jmp_buf jb;
                 struct {
-                        void *v[6], *sl, *fp, *sp, (*pc)();
+                        void *sp, (*pc)(), *v[6], *sl, *fp;
                 };
         };
 };
