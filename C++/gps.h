@@ -94,6 +94,7 @@ enum SPI_SEL {
 int  peri_init();
 void peri_free();
 void peri_spi(SPI_SEL sel, char *mosi, int txlen, char *miso, int rxlen);
+void peri_minispi(bool rw, char reg_adr, short *mosi, short *miso);
 
 //////////////////////////////////////////////////////////////
 // Search

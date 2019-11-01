@@ -1,0 +1,141 @@
+/* - the host (Raspberry Pi) drives SCLK, CSN, and SDATA
+- a full transaction consists of 48 SCLK pulses
+- SDATA is output on falling edge of clock, sampled on rising edge of clock by both chips
+- SDATA is driven by host during Write transactions, and during first part of read transactions
+-
+    bits 0-7 : these bits are zero
+    bits 8-11 : contain address of register to be accessed
+    bit 12 : R/W bit, if 1 read if 0 write
+    bits 13-15 : "turnaround" bits T_A, they are don't care values, if read host releases SDATA, otherwise host continues to drive SDATA
+    bits 16-47 : 32 data bits
+    
+REGISTER READ:
+host sets CSN to low to assert it
+begins toggling the clock
+sends 8 zeroes
+sends 4-bit address
+send R/W bit
+send 3 T_A bits (while host releases SDATA line)
+MAX2771 drives SDATA for 32 bits
+host brings CSN high to deassert it
+
+
+CSN is high
+CSN is set to low
+wait at least 10 ns
+
+first 8 clocks, send 0, period of at least 250 ns
+    clock high
+    clock low
+    send 0
+    */
+    
+/*
+MAX2771 registers that we need to set:
+
+R - indicates reserved values
+
+Configuration 1 (0x0):
+31: 1
+30: 0 (?)
+29-26: 1111
+25-22: 1010
+21-18: RRRR
+17: 1 (mixer pole: is it 36 or 13 MHz?)
+16-15: 00
+14-13: 00
+
+////////////////////////////////////////
+L1 is 1575.42 MHz with bandwidth of 15.345 MHz
+if we mix with 1552.82 MHz we get
+22.6 MHz with 15.345 MHz bandwidth, so we need low pass filter to get everything from 7.255 to 37.945 MHz
+we set it to be a low pass with bandwidth 36
+////////////////////////////////////////
+so....
+12-6: don't care, can just write 0
+5-3:
+
+2: 1 (I don't think this matters)
+1: 0
+0: 1 (?)
+
+(I am assuming we are using AGC)
+
+Configuration 2 (0x1):
+31-29: RRR
+28: 0
+27: 0
+26-15: ?
+14-13: 00
+12-11: ?
+10-9: 00
+8-6: 000 (?)
+
+5-4: ?
+3-2: RR
+1-0: RR (?)
+
+Configuration 3 (0x2):
+31-28: RRRR
+27-22: ?
+21: R
+20: ?
+19-16: RRRR
+15: ?
+14: ?
+13: 1 (?)
+12: (?)
+11: ?
+10: ?
+9: ?
+8-6: RRR
+5-4: ?
+3: ?
+2: ?
+1: ?
+0: ?
+
+PLL Configuration (0x3):
+31-29: ?
+28: 0
+27-25: RRR
+24: ?
+23-21: RRR
+20-19: ??
+18-10: RRRRRRRRR
+9: ?
+8-4: RRRRR
+3: ?
+2: 0 (?)
+1-0: RR
+
+PLL Integer Division Ratio (0x4):
+31-28: RRRR
+27-13: ?
+12-3: ?
+2-0: RRR
+
+PLL Fractional Division Radio (0x5):
+31-28: RRRR
+27-8: ?
+7-0: RRRRRRRR
+
+0x6 is reserved!
+
+Clock Configuration 1 (0x7):
+31-29: RRR
+28: 1 (?)
+27-16: ?
+15-4: ?
+3: ?
+2: ?
+1: R
+0: ?
+
+Test Mode 1 (0x8) is reserved!
+
+Test Mode 2 (0x9):
+31-25: R
+24-22: 011
+21-0: R
+*/

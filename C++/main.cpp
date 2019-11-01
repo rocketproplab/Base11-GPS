@@ -57,19 +57,16 @@ int fpga_init() {
 
 //  Functions to test minispi
 void test_read_minispi() {
-    short *test_mosi, *test_miso;
-    test_mosi = malloc(4);
-    test_miso = malloc(4);
+    short test_mosi[2];
+    short test_miso[2];
     
     // MAX2771 register read test (read first 3 registers)
-    unsigned uint32_t reset_vals[3] = {0xBEA41603, 0x20550288, 0x0EAFA1DC}
+    uint32_t reset_vals[] = {0xBEA41603, 0x20550288, 0x0EAFA1DC};
     for (short i = 0; i < 2; i++) {
         printf("testing SPI1 code. Attempting to read from register %d on MAX2771. Output should be %x\n", i, reset_vals[i]);
         peri_minispi(true, (char)i, test_mosi, test_miso);
         printf("output is %x\n", ((uint32_t)test_miso[0] + ((uint32_t)test_miso[1])<<16));
     }
-    free(test_mosi);
-    free(test_miso);
 }
 void test_write_minispi() {
     printf("TODO");
@@ -111,14 +108,6 @@ int main(int /* argc */, char * /* argv */ []) {
     }
 
     printf("Search Initialized!\n");
-    
-    //////////////////////////////////////////////////////////////
-    // Test if SPI1 read works
-    short test_mosi[2], test_miso[2];
-    printf("Testing SPI1 read functionality...\n");
-    peri_minispi(true, 0, test_mosi, test_miso);
-    printf("Values read: %x", test_miso);
-    //////////////////////////////////////////////////////////////
 
     spi_set(CmdSetDAC, 2560); // Put TCVCXO bang on 10.000000 MHz
 
