@@ -68,6 +68,7 @@ void test_read_minispi() {
         printf("output is %x\n", ((uint32_t)test_miso[0] + ((uint32_t)test_miso[1])<<16));
     }
 }
+
 void test_write_minispi() {
     printf("TODO");
 }

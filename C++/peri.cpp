@@ -168,7 +168,7 @@ int peri_init() {
                (3<<(3*(MAX2771_CS_2-10))) +
                (3<<(3*(MAX2771_CS_1-10))) +
                (3<<(3*(MAX2771_CS_0-10))) +
-               (3<<(3*(MAX2771_MISO))));
+               (3<<(3*(MAX2771_MISO-10)));
     
     // GPIO[29:20]
     // GP_FSEL2 has bits 2 and 5 set
@@ -255,7 +255,7 @@ void peri_minispi(bool rw, char reg_adr, short *mosi, short *miso) {
     
     // set chip select and enable bit, and clock speed (0xF00300)
     // don't know what clock speed is needed for SPI1 clock, setting to same speed as SPI0 for now
-    SPI1_CNTL0 = 0xF00300 + (sel<<18) + 1<<11;
+    SPI1_CNTL0 = 0xF0030000 + (2<<18) + 1<<11; // set CE1 and enable SPI1
 
     // first transfer 16 bits, with address and rw bit
     unsigned short adr_rw_ta = (reg_adr<<8) + (rw<<12);
@@ -273,28 +273,28 @@ void peri_minispi(bool rw, char reg_adr, short *mosi, short *miso) {
     }
     
     while (tx<txlen) {
-        if (!(SPI_STAT & (1<<10))) {
+        if (!(SPI1_STAT & (1<<10))) {
             if (tx != txlen-1)
                 SPI1_TXHOLD = mosi[tx++];
             else
                 SPI1_IO = mosi[tx++];
         }
-        if (!(SPI_STAT & (1<<7))) miso[rx++] = SPI1_IO;
+        if (!(SPI1_STAT & (1<<7))) miso[rx++] = SPI1_IO;
     }
     while (tx<rxlen) {
-        if (!(SPI_STAT & (1<<10))) {
+        if (!(SPI1_STAT & (1<<10))) {
             if (tx != rxlen-1)
                 SPI1_TXHOLD = 0, tx++;
             else
                 SPI1_IO = 0, tx++;
         }
-        if (!(SPI_STAT & (1<<7))) miso[rx++] = SPI1_IO;
+        if (!(SPI1_STAT & (1<<7))) miso[rx++] = SPI1_IO;
     }
     while (rx<rxlen) {
-        if (!(SPI_STAT & (1<<19))) miso[rx++] = SPI1_IO;
+        if (!(SPI1_STAT & (1<<19))) miso[rx++] = SPI1_IO;
     }
     
-    while (SPI_STAT & (1<<10) || SPI_STAT & (1<<7)) {}
+    while (SPI1_STAT & (1<<10) || SPI1_STAT & (1<<7)) {}
     
     SPI1_CNTL0 = 0;
 }
@@ -304,5 +304,5 @@ void peri_minispi(bool rw, char reg_adr, short *mosi, short *miso) {
 void peri_free() {
     munmap((void *) gpio, BLOCK_SIZE);
     munmap((void *) spi,  BLOCK_SIZE);
-    munmap((void *) spi_1, 48
+    munmap((void *) spi_1, 48);
 }
