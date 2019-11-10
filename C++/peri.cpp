@@ -47,12 +47,13 @@
 #define SPI_FIFO  spi[1]
 #define SPI_CLK   spi[2]
 
-#define SPI1_CNTL0 spi_1[0] // 0x20215080
-#define SPI1_CNTL1 spi_1[1] // 0x20215084
-#define SPI1_STAT spi_1[2] // 0x20215088
-#define SPI1_IO spi_1[8] // IO is at 0x202150A0 ??
-#define SPI1_PEEK spi_1[3] // 0x2021508C
-#define SPI1_TXHOLD spi_1[12] // 0x202150B0 ??
+#define AUXEN_B spi_1[1] // 0x20215004
+#define SPI1_CNTL0 spi_1[32] // 0x20215080
+#define SPI1_CNTL1 spi_1[33] // 0x20215084
+#define SPI1_STAT spi_1[34] // 0x20215088
+#define SPI1_IO spi_1[40] // IO is at 0x202150A0 ??
+#define SPI1_PEEK spi_1[35] // 0x2021508C
+#define SPI1_TXHOLD spi_1[44] // 0x202150B0 ??
 
 // GPIO registers
 #define GP_FSEL0 gpio[0] // GPIO Function Select 0
@@ -117,8 +118,7 @@ int peri_init() {
         mem_fd,
         SPI0_BASE
     );
-
-    // Consists of 48 bytes
+    
     spi_1 = (volatile unsigned *) mmap(
         NULL,
         BLOCK_SIZE,
@@ -142,7 +142,7 @@ int peri_init() {
     // setting SPI0 clock register and chip select
     SPI_CLK = 32;   // SCLK ~ 8 MHz
     SPI_CS = 3<<4;  // Reset (sets bits 4 and 5, clearing TX and RX FIFO)
-
+    
     // GPIO[9:0]
     // sets fsel4 to 1, fsel9 to b100, fsel8 to b100, fsel7 to b100
     // so...
@@ -160,7 +160,7 @@ int peri_init() {
     // so...
     // GPIO pins 10 and 11 take alternate function 0. Pins 12-19 are inputs.
     // this means pin 10 is SPI0_MOSI, pin 11 is SPI0_SCLK
-
+    
     // GPIO pins 16, 17, 18, 19 take alternate function 4.
     // this means pins 16-18 become the chip select bits for the
     // SPI1 interface between the Pi and the front end chip, and
@@ -171,7 +171,7 @@ int peri_init() {
                (3<<(3*(MAX2771_CS_1-10))) +
                (3<<(3*(MAX2771_CS_0-10))) +
                (3<<(3*(MAX2771_MISO-10)));
-
+    
     // GPIO[29:20]
     // GP_FSEL2 has bits 2 and 5 set
     // so...
@@ -179,8 +179,8 @@ int peri_init() {
     // this means pin 20 is SPI1_MOSI, pin 21 is SPI1_SCLK
     GP_FSEL2 = (3<<(3*(MAX2771_MOSI-20))) +
                (3<<(3*(MAX2771_SCLK-20)));
-
-
+    
+    
 
     // result is:
     // (BCM pin nos.)
@@ -206,14 +206,17 @@ int peri_init() {
     // Pin 19 - SPI1_MISO
     // Pin 20 - SPI1_MOSI
     // Pin 21 - SPI1_SCLK
-
-
-
+    
+    
+    
     // Reset FPGA
     GP_SET0 = 1<<FPGA_PROG + 1<<5; // set pin 4 (output to FPGA), set pin 5 (not shutdown pin) to 1
-    while ((GP_LEV0 & (1<<FPGA_INIT_B)) != 0); // wait until SPI0_MISO is zero
+    //while ((GP_LEV0 & (1<<FPGA_INIT_B)) != 0); // wait until SPI0_MISO is zero
     GP_CLR0 = 1<<FPGA_PROG; // then clear pin 4
     //while ((GP_LEV0 & (1<<FPGA_INIT_B)) == 0); //TODO uncomment when attached to GPS
+
+    AUXEN_B = 1 << 1; // set SPI 1 enable
+    //SPI1_CNTL0 = 0xF00A0000 | (1<<11) | (1 << 8); // set CE1 and enable SPI1
 
     // TODO: add code to reset MAX2771 chip here, if needed
     return 0;
@@ -245,35 +248,44 @@ void peri_spi(SPI_SEL sel, char *mosi, int txlen, char *miso, int rxlen) {
 
     // set all bits on CS register to 0
     SPI_CS = 0;
+
 }
 
 // Sends or receives one cycle of data (32 bit data value) to or from the MAX2771 at specified register address (reg_adr).
 // WARNING: This has not been tested, it might not work. I really hope it does...
 
 // to test this, first try reading from the first register in the beginning when the values are known
-void peri_minispi(bool rw, char reg_adr, short *mosi, short *miso) {
+void peri_minispi(bool rw, char reg_adr, unsigned *mosi, unsigned int *miso) {
     int rxlen, txlen;
     int rx = 0, tx = 0;
-
+    
     // set chip select and enable bit, and clock speed (0xF00300)
     // don't know what clock speed is needed for SPI1 clock, setting to same speed as SPI0 for now
-    SPI1_CNTL0 = 0xF0030000 + (2<<18) + 1<<11; // set CE1 and enable SPI1
+    AUXEN_B = 1 << 1; // set SPI 1 enable
+    SPI1_CNTL0 = (50 << 20) | (1<<19) | (1<<17) | (1<<11) | (1<<10) | (1<<6) | 16; // set CE1 and enable SPI1
+    unsigned int val = SPI1_CNTL0;
 
     // first transfer 16 bits, with address and rw bit
-    unsigned short adr_rw_ta = (reg_adr<<8) + (rw<<12);
+    unsigned int adr_rw_ta = (reg_adr<<4) | (rw<<3);
     while (SPI1_STAT & 1<<10) { }
-    SPI1_TXHOLD = adr_rw_ta;
+    SPI1_TXHOLD = adr_rw_ta << 16;
+    while (rx<1) {
+        if (!(SPI1_STAT & (1<<7))) miso[rx++] = (short)SPI1_IO;
+    }
+    rx = 0;
+    
+    //val = SPI1_PEEK;
 
     // then transfer 32 bits of data
     if (rw) { // read
-        rxlen = 2;
+        rxlen = 2; // should be 2
         txlen = 0;
     }
     else {
         rxlen = 0;
         txlen = 2;
     }
-
+    
     while (tx<txlen) {
         if (!(SPI1_STAT & (1<<10))) {
             if (tx != txlen-1)
@@ -293,11 +305,11 @@ void peri_minispi(bool rw, char reg_adr, short *mosi, short *miso) {
         if (!(SPI1_STAT & (1<<7))) miso[rx++] = SPI1_IO;
     }
     while (rx<rxlen) {
-        if (!(SPI1_STAT & (1<<19))) miso[rx++] = SPI1_IO;
+        if (!(SPI1_STAT & (1<<7))) miso[rx++] = SPI1_IO;
     }
-
-    while (SPI1_STAT & (1<<10) || SPI1_STAT & (1<<7)) {}
-
+    
+    //while (SPI1_STAT & (1<<10) || SPI1_STAT & (1<<7)) {}
+    
     SPI1_CNTL0 = 0;
 }
 

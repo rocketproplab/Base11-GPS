@@ -57,14 +57,15 @@ int fpga_init() {
 
 //  Functions to test minispi
 void test_read_minispi() {
-    short test_mosi[2];
-    short test_miso[2];
+    unsigned int test_mosi[3];
+    unsigned int test_miso[3];
     
     // MAX2771 register read test (read first 3 registers)
     uint32_t reset_vals[] = {0xBEA41603, 0x20550288, 0x0EAFA1DC};
-    for (short i = 0; i < 2; i++) {
+    for (short i = 0; i <= 2; i++) {
         printf("testing SPI1 code. Attempting to read from register %d on MAX2771. Output should be %x\n", i, reset_vals[i]);
-        peri_minispi(true, (char)i, test_mosi, test_miso);
+        short delta = i;
+        peri_minispi(true, delta, test_mosi, test_miso);
         printf("output is %x\n", ((uint32_t)test_miso[0] + ((uint32_t)test_miso[1])<<16));
     }
 }
@@ -92,8 +93,11 @@ int main(int /* argc */, char * /* argv */ []) {
         return ret;
     }
 
-    test_read_minispi();
+    for(int i = 0; i<20; i++){
+    //  test_read_minispi();
+    }
 
+    test_read_minispi();
     printf("Peripherals Initialized!\n");
 
     ret = fpga_init();
