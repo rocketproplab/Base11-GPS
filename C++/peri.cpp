@@ -35,7 +35,7 @@
 #define PERI_BASE   0x20000000
 #define GPIO_BASE  (PERI_BASE + 0x200000) // beginning of GPIO addresses
 #define SPI0_BASE  (PERI_BASE + 0x204000) // base address of SPI0
-#define SPI1_BASE (PERI_BASE + 0x215080)
+#define SPI1_BASE (PERI_BASE + 0x215000)
 
 #define BLOCK_SIZE (4*1024)
 #define SPI1_BLOCK_SIZE (64)
@@ -117,16 +117,18 @@ int peri_init() {
         mem_fd,
         SPI0_BASE
     );
-    
+
     // Consists of 48 bytes
     spi_1 = (volatile unsigned *) mmap(
         NULL,
-        48,
+        BLOCK_SIZE,
         PROT_READ|PROT_WRITE,
         MAP_SHARED,
         mem_fd,
         SPI1_BASE
     );
+
+    printf("spi_1 = %p\n", spi_1);
 
     close(mem_fd);
 
@@ -140,7 +142,7 @@ int peri_init() {
     // setting SPI0 clock register and chip select
     SPI_CLK = 32;   // SCLK ~ 8 MHz
     SPI_CS = 3<<4;  // Reset (sets bits 4 and 5, clearing TX and RX FIFO)
-    
+
     // GPIO[9:0]
     // sets fsel4 to 1, fsel9 to b100, fsel8 to b100, fsel7 to b100
     // so...
@@ -158,7 +160,7 @@ int peri_init() {
     // so...
     // GPIO pins 10 and 11 take alternate function 0. Pins 12-19 are inputs.
     // this means pin 10 is SPI0_MOSI, pin 11 is SPI0_SCLK
-    
+
     // GPIO pins 16, 17, 18, 19 take alternate function 4.
     // this means pins 16-18 become the chip select bits for the
     // SPI1 interface between the Pi and the front end chip, and
@@ -169,7 +171,7 @@ int peri_init() {
                (3<<(3*(MAX2771_CS_1-10))) +
                (3<<(3*(MAX2771_CS_0-10))) +
                (3<<(3*(MAX2771_MISO-10)));
-    
+
     // GPIO[29:20]
     // GP_FSEL2 has bits 2 and 5 set
     // so...
@@ -177,8 +179,8 @@ int peri_init() {
     // this means pin 20 is SPI1_MOSI, pin 21 is SPI1_SCLK
     GP_FSEL2 = (3<<(3*(MAX2771_MOSI-20))) +
                (3<<(3*(MAX2771_SCLK-20)));
-    
-    
+
+
 
     // result is:
     // (BCM pin nos.)
@@ -204,9 +206,9 @@ int peri_init() {
     // Pin 19 - SPI1_MISO
     // Pin 20 - SPI1_MOSI
     // Pin 21 - SPI1_SCLK
-    
-    
-    
+
+
+
     // Reset FPGA
     GP_SET0 = 1<<FPGA_PROG + 1<<5; // set pin 4 (output to FPGA), set pin 5 (not shutdown pin) to 1
     while ((GP_LEV0 & (1<<FPGA_INIT_B)) != 0); // wait until SPI0_MISO is zero
@@ -252,7 +254,7 @@ void peri_spi(SPI_SEL sel, char *mosi, int txlen, char *miso, int rxlen) {
 void peri_minispi(bool rw, char reg_adr, short *mosi, short *miso) {
     int rxlen, txlen;
     int rx = 0, tx = 0;
-    
+
     // set chip select and enable bit, and clock speed (0xF00300)
     // don't know what clock speed is needed for SPI1 clock, setting to same speed as SPI0 for now
     SPI1_CNTL0 = 0xF0030000 + (2<<18) + 1<<11; // set CE1 and enable SPI1
@@ -271,7 +273,7 @@ void peri_minispi(bool rw, char reg_adr, short *mosi, short *miso) {
         rxlen = 0;
         txlen = 2;
     }
-    
+
     while (tx<txlen) {
         if (!(SPI1_STAT & (1<<10))) {
             if (tx != txlen-1)
@@ -293,9 +295,9 @@ void peri_minispi(bool rw, char reg_adr, short *mosi, short *miso) {
     while (rx<rxlen) {
         if (!(SPI1_STAT & (1<<19))) miso[rx++] = SPI1_IO;
     }
-    
+
     while (SPI1_STAT & (1<<10) || SPI1_STAT & (1<<7)) {}
-    
+
     SPI1_CNTL0 = 0;
 }
 

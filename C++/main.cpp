@@ -77,7 +77,7 @@ void test_write_minispi() {
 
 int main(int /* argc */, char * /* argv */ []) {
     
-    test_read_minispi();
+    //test_read_minispi();
     
     SPI_MISO miso;
     int ret;
@@ -91,6 +91,8 @@ int main(int /* argc */, char * /* argv */ []) {
         printf("peri_init() returned %d\n", ret);
         return ret;
     }
+
+    test_read_minispi();
 
     printf("Peripherals Initialized!\n");
 
