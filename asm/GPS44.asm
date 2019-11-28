@@ -1,5 +1,6 @@
 ; ============================================================================
 ; Homemade GPS Receiver
+; Copyright (C) 2018 Max Apodaca
 ; Copyright (C) 2013 Andrew Holme
 ;
 ; This program is free software: you can redistribute it and/or modify
