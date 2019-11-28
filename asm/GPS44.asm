@@ -18,8 +18,9 @@
 ; http://www.aholme.co.uk/GPS/Main.htm
 ; ============================================================================
 
-.model Tiny
-.code
+;.model Tiny
+;.code
+SECTION .text
 
 NUM_CHANS       equ 12
 
@@ -60,51 +61,55 @@ op_rdReg        equ 0C000h
 op_wrReg        equ 0D000h
 op_wrEvt        equ 0E000h
 
-opt_ret         equ 1 shl 7
-opt_cin         equ 1 shl 6
+opt_ret         equ 1 << 7
+opt_cin         equ 1 << 6
 
 op_ret          equ op_nop + opt_ret
 
 ; ============================================================================
 
-GET_CHAN_IQ     equ 1 shl 0
-GET_SRQ         equ 1 shl 1
-GET_SNAPSHOT    equ 1 shl 2
-JTAG_RX         equ 1 shl 3
-GET_JOY         equ 1 shl 4
+GET_CHAN_IQ     equ 1 << 0
+GET_SRQ         equ 1 << 1
+GET_SNAPSHOT    equ 1 << 2
+JTAG_RX         equ 1 << 3
+GET_JOY         equ 1 << 4
 
-JTAG_TX         equ 1 shl 0
-SET_VCO         equ 1 shl 1
-SET_MASK        equ 1 shl 2
-SET_CHAN        equ 1 shl 3
+JTAG_TX         equ 1 << 0
+SET_VCO         equ 1 << 1
+SET_MASK        equ 1 << 2
+SET_CHAN        equ 1 << 3
 
-SET_CA_NCO      equ 1 shl 4
-SET_LO_NCO      equ 1 shl 5
-SET_SV          equ 1 shl 6
-SET_PAUSE       equ 1 shl 7
+SET_CA_NCO      equ 1 << 4
+SET_LO_NCO      equ 1 << 5
+SET_SV          equ 1 << 6
+SET_PAUSE       equ 1 << 7
 
-SET_LCD         equ 1 shl 8
+SET_LCD         equ 1 << 8
 
-JTAG_RST        equ 1 shl 0
-JTAG_RDY        equ 1 shl 1
-SAMPLER_RST     equ 1 shl 2
-GET_SAMPLES     equ 1 shl 3
-GET_MEMORY      equ 1 shl 4
-GET_LOG         equ 1 shl 5
-PUT_LOG         equ 1 shl 6
-LOG_RST         equ 1 shl 7
-SET_DAC         equ 1 shl 8
+JTAG_RST        equ 1 << 0
+JTAG_RDY        equ 1 << 1
+SAMPLER_RST     equ 1 << 2
+GET_SAMPLES     equ 1 << 3
+GET_MEMORY      equ 1 << 4
+GET_LOG         equ 1 << 5
+PUT_LOG         equ 1 << 6
+LOG_RST         equ 1 << 7
+SET_DAC         equ 1 << 8
 
 ; ============================================================================
 
-Service         MACRO chan                  ; ... flag
-                LOCAL $1
-                dw op_branchZ + $1
-                dw chan * sizeof CHANNEL + Chans
-                dw chan
+;Service         MACRO chan                  ; ... flag
+%macro  Service  1
+                ;LOCAL $1
+                dw op_branchZ + %%1
+                ;dw chan * sizeof CHANNEL + Chans
+                dw %1*CHANNEL_SIZE+Chans
+                ;dw chan
+                dw %1
                 dw op_call + Method
-$1:             ;
-                ENDM                        ; ...
+%%1:             ;
+                ;ENDM                        ; ...
+%endmacro
 
 ; ============================================================================
 
@@ -117,13 +122,25 @@ Ready:          dw op_wrEvt + JTAG_RDY
 
 Main:           dw op_rdReg + GET_SRQ       ; 0
                 dw op_rdBit                 ; host_srq
-                dw NUM_CHANS dup(0,op_rdBit); host_srq f(n-1) f(n-2) ... f(1) f(0)
+                ;dw NUM_CHANS dup(0,op_rdBit); host_srq f(n-1) f(n-2) ... f(1) f(0)
+                TIMES NUM_CHANS dw 0,op_rdBit; host_srq f(n-1) f(n-2) ... f(1) f(0)
 
-                chan = 0
-                rept NUM_CHANS
-                    Service chan
-                    chan = chan + 1
-                endm                        ; host_srq
+                ;chan = 0
+                %assign chan 0
+                ;rept NUM_CHANS
+                %rep NUM_CHANS
+                    ;Service chan
+                    ;chan = chan + 1
+                    dw op_branchZ + .endChan%+chan
+                    ;dw chan * sizeof CHANNEL + Chans
+                    dw chan*CHANNEL_SIZE+Chans
+                    ;dw chan
+                    dw chan
+                    dw op_call + Method
+    .endChan%+chan:
+                    %assign chan chan+1
+                ;endm                        ; host_srq
+                %endrep
 
                 dw op_branchZ + Main        ;
 
@@ -133,7 +150,8 @@ Main:           dw op_rdReg + GET_SRQ       ; 0
                 dw Commands, op_add         ; &Commands[cmd]
                 dw op_fetch16               ; vector
                 dw Ready                    ; vector Ready
-                dw 2 dup (op_to_r)          ;                   ; Ready vector
+                ;dw 2 dup (op_to_r)          ;                   ; Ready vector
+                TIMES 2 dw op_to_r          ;                   ; Ready vector
                 dw op_ret
 
 ; ============================================================================
@@ -158,28 +176,59 @@ Commands:       dw CmdSample
 ; ============================================================================
 
 MAX_BITS        equ 64
+CHANNEL_SIZE    equ 44
 
-CHANNEL         struct
-ch_NAV_MS       dw ?                        ; Milliseconds 0 ... 19
-ch_NAV_BITS     dw ?                        ; Bit count
-ch_NAV_GLITCH   dw ?                        ; Glitch count
-ch_NAV_PREV     dw ?                        ; Last data bit = ip[15]
-ch_NAV_BUF      dw MAX_BITS/16 dup (?)      ; NAV data buffer
-ch_CA_FREQ      dq ?                        ; Loop integrator
-ch_LO_FREQ      dq ?                        ; Loop integrator
-ch_IQ           dw 2 dup (?)                ; Last IP, QP
-ch_CA_GAIN      dw 2 dup (?)                ; KI, KP-KI = 20, 27-20
-ch_LO_GAIN      dw 2 dup (?)                ; KI, KP-KI = 21, 28-21
-CHANNEL         ends
+;CHANNEL         struct
+;struc CHANNEL
+;ch_NAV_MS       dw ?                        ; Milliseconds 0 ... 19
+;ch_NAV_BITS     dw ?                        ; Bit count
+;ch_NAV_GLITCH   dw ?                        ; Glitch count
+;ch_NAV_PREV     dw ?                        ; Last data bit = ip[15]
+;ch_NAV_BUF      dw MAX_BITS/16 dup (?)      ; NAV data buffer
+;ch_NAV_BUF      TIMES MAX_BITS/16 dw ?      ; NAV data buffer
+;ch_CA_FREQ      dq ?                        ; Loop integrator
+;ch_LO_FREQ      dq ?                        ; Loop integrator
+;ch_IQ           dw 2 dup (?)               ; Last IP, QP
+;ch_IQ           TIMES 2 dw ?                ; Last IP, QP
+;ch_CA_GAIN      dw 2 dup (?)               ; KI, KP-KI = 20, 27-20
+;ch_CA_GAIN      TIMES 2 dw ?                ; KI, KP-KI = 20, 27-20
+;ch_LO_GAIN      dw 2 dup (?)               ; KI, KP-KI = 21, 28-21
+;ch_LO_GAIN      TIMES 2 dw ?                ; KI, KP-KI = 21, 28-21
+;CHANNEL         ends
+;endstruc
 
-Chans:          CHANNEL NUM_CHANS dup (<>)
+;CHANNEL         struct
+struc CHANNEL
+ch_NAV_MS:      resw 1                      ; Milliseconds 0 ... 19
+ch_NAV_BITS:    resw 1                      ; Bit count
+ch_NAV_GLITCH:  resw 1                      ; Glitch count
+ch_NAV_PREV:    resw 1                      ; Last data bit = ip[15]
+ch_NAV_BUF:     resw MAX_BITS/16            ; NAV data buffer
+ch_CA_FREQ:     resq 1                      ; Loop integrator
+ch_LO_FREQ:     resq 1                      ; Loop integrator
+ch_IQ           resw 2                      ; Last IP, QP
+ch_CA_GAIN      resw 2                      ; KI, KP-KI = 20, 27-20
+ch_LO_GAIN      resw 2                      ; KI, KP-KI = 21, 28-21
+endstruc
 
-GetChanPtr:     dw sizeof CHANNEL, op_mult
+;Chans:          CHANNEL NUM_CHANS dup (<>)
+Chans:
+%rep NUM_CHANS
+                istruc CHANNEL
+                iend
+%endrep
+;Chans:  istruc CHANNEL iend
+
+GetChanPtr:     dw CHANNEL_SIZE, op_mult
                 dw Chans, op_add + opt_ret
 
 ; ============================================================================
 
-CloseLoop       MACRO freq, gain, nco       ; err32
+;CloseLoop       MACRO freq, gain, nco       ; err32
+%macro CloseLoop 3
+                %assign freq %1
+                %assign gain %2
+                %assign nco %3
                 dw op_extend                ; err64                         9
                 dw op_r, op_addi + gain     ; err64 &gain[0]                2
                 dw op_fetch16               ; err64 ki                      1
@@ -198,15 +247,17 @@ CloseLoop       MACRO freq, gain, nco       ; err32
                 dw op_add64                 ; nco64                         7
                 dw op_drop                  ; nco32                         1
                 dw op_wrReg + nco           ;                               1
-                ENDM                        ;                 TOTAL = kp + 98
+                ;ENDM                        ;                 TOTAL = kp + 98
+%endmacro
 
 ; ============================================================================
 
-GetCount:       dw 0, op_rdbit              ; [14]                         20
+GetCount:       dw 0, op_rdBit              ; [14]                         20
                 dw op_dup                   ; [14] [14]
                 dw op_shl                   ; [14] [15]
                 dw op_add                   ; [15:14]
-                dw 13 dup (op_rdBit)        ; [15:1]
+                ;dw 13 dup (op_rdBit)        ; [15:1]
+                TIMES 13 dw op_rdBit        ; [15:1]
                 dw op_shl + opt_ret         ; [15:0]
 
 GetPower:       dw op_call + GetCount       ; i                            48
@@ -299,7 +350,8 @@ NavSave:        dw 0, op_swap               ; bit 0 &ms
                 dw op_addi + ch_NAV_BITS    ; bit cnt wrapped &cnt
                 dw op_store16, op_drop      ; bit cnt
 
-                dw 4 dup (op_shr)           ; bit cnt/16
+                ;dw 4 dup (op_shr)           ; bit cnt/16
+                TIMES 4 dw op_shr           ; bit cnt/16
                 dw op_shl                   ; bit offset
                 dw op_r_from                ; bit offset this
                 dw op_addi + ch_NAV_BUF     ; bit offset buf
@@ -315,36 +367,51 @@ NavSave:        dw 0, op_swap               ; bit 0 &ms
 
 ; ============================================================================
 
-UploadSamples:  dw 16 dup (op_wrEvt + GET_SAMPLES)
+;UploadSamples:  dw 16 dup (op_wrEvt + GET_SAMPLES)
+UploadSamples:  TIMES 16 dw op_wrEvt + GET_SAMPLES
                 dw op_ret
 
-UploadChan:     dw sizeof CHANNEL / 2 dup (op_wrEvt + GET_MEMORY)
+;UploadChan:     dw sizeof CHANNEL / 2 dup (op_wrEvt + GET_MEMORY)
+UploadChan:     TIMES CHANNEL_SIZE/2 dw op_wrEvt + GET_MEMORY
                 dw op_ret
 
-UploadClock:    dw 2 dup (op_wrEvt + GET_MEMORY)
-                dw 0, 16 dup (op_rdBit)
+;UploadClock:    dw 2 dup (op_wrEvt + GET_MEMORY)
+UploadClock:    TIMES 2 dw op_wrEvt + GET_MEMORY
+                ;dw 0, 16 dup (op_rdBit)
+                dw 0
+                TIMES 16 dw op_rdBit
                 dw op_wrReg + JTAG_TX
-                dw opt_ret + op_addi + sizeof CHANNEL - 4
+                dw opt_ret + op_addi + CHANNEL_SIZE - 4
 
 UploadGlitches: dw op_wrEvt + GET_MEMORY
-                dw opt_ret + op_addi + sizeof CHANNEL - 2
+                dw opt_ret + op_addi + CHANNEL_SIZE - 2
 
 ; ============================================================================
 
-RdReg32         MACRO reg
-                dw 2 dup (op_rdReg + reg)   ; 0,l 0,h
+;RdReg32         MACRO reg
+%macro          RdReg32 1
+                %assign reg %1
+                ;dw 2 dup (op_rdReg + reg)   ; 0,l 0,h
+                TIMES 2 dw op_rdReg + reg   ; 0,l 0,h
                 dw op_swap16                ; 0,l h,0
                 dw op_add                   ; h,l
-                ENDM
+                ;ENDM
+%endmacro
 
 ; ============================================================================
 
-SetReg          MACRO reg
+;SetReg          MACRO reg
+%macro          SetReg 1
+                %assign reg %1
                 dw op_rdReg + JTAG_RX
                 dw op_wrReg + reg
-                ENDM
+                ;ENDM
+%endmacro
 
-SetRate         MACRO member, nco           ;
+;SetRate         MACRO member, nco           ;
+%macro          SetRate 2
+                %assign member %1
+                %assign nco %2
                 dw op_rdReg + JTAG_RX       ; chan
                 RdReg32       JTAG_RX       ; chan freq32
                 dw op_swap                  ; freq32 chan
@@ -356,16 +423,20 @@ SetRate         MACRO member, nco           ;
                 dw op_store64, op_drop      ; freq chan
                 dw op_wrReg + SET_CHAN      ; freq
                 dw op_wrReg + nco           ;
-                ENDM
+                ;ENDM
+%endmacro
 
-SetGain         MACRO member                ;
+;SetGain         MACRO member                ;
+%macro          SetGain 1
+                %assign member %1
                 dw op_rdReg + JTAG_RX       ; chan
                 RdReg32       JTAG_RX       ; chan  kp,ki
                 dw op_swap                  ; kp,ki  chan
                 dw op_call + GetChanPtr     ; kp,ki  this
                 dw op_addi + member         ; kp,ki  &gain
                 dw op_store32, op_drop      ;
-                ENDM
+                ;ENDM
+%endmacro
 
 ; ============================================================================
 
@@ -401,7 +472,8 @@ CmdSetVCO:      dw op_rdReg + JTAG_RX       ; wparam
                 dw op_drop + opt_ret
 
 CmdGetSamples:  dw op_wrEvt + JTAG_RST
-                dw 16 dup (op_call + UploadSamples)
+                ;dw 16 dup (op_call + UploadSamples)
+                TIMES 16 dw op_call + UploadSamples
                 dw op_ret
 
 CmdGetChan:     dw op_rdReg + JTAG_RX       ; wparam
@@ -412,29 +484,35 @@ CmdGetChan:     dw op_rdReg + JTAG_RX       ; wparam
 
 CmdGetClocks:   dw op_wrEvt + JTAG_RST
                 dw op_rdReg + GET_SNAPSHOT
-                dw NUM_CHANS dup (op_rdBit)
+                ;dw NUM_CHANS dup (op_rdBit)
+                TIMES NUM_CHANS dw op_rdBit
                 dw op_wrReg + JTAG_TX
                 dw Chans
-                dw NUM_CHANS dup (op_call + UploadClock)
+                ;dw NUM_CHANS dup (op_call + UploadClock)
+                TIMES NUM_CHANS dw op_call + UploadClock
                 dw op_drop + opt_ret
 
 CmdGetGlitches: dw op_wrEvt + JTAG_RST
                 dw Chans + ch_NAV_GLITCH
-                dw NUM_CHANS dup (op_call + UploadGlitches)
+                TIMES NUM_CHANS dw op_call + UploadGlitches
                 dw op_drop + opt_ret
 
 CmdSetDAC:      dw op_rdReg + JTAG_RX       ; wparam
-                dw 3 shl 13                 ; d[11:0] cmd<<13
-                dw 8 dup (op_call+DAC_bit)
+                ;dw 3 shl 13                 ; d[11:0] cmd<<13
+                dw 3 << 13                 ; d[11:0] cmd<<13
+                ;dw 8 dup (op_call+DAC_bit)
+                TIMES 8 dw op_call+DAC_bit
                 dw op_drop                  ; d[11:0]
-                dw 5 dup (op_shl)           ; d[11:0]<<5
-                dw 16 dup (op_call+DAC_bit)
+                ;dw 5 dup (op_shl)           ; d[11:0]<<5
+                TIMES 5 dw op_shl           ; d[11:0]<<5
+                ;dw 16 dup (op_call+DAC_bit)
+                TIMES 16 dw op_call+DAC_bit
                 dw op_addi + 1
                 dw op_wrEvt + SET_DAC       ; CS_N=1
                 dw op_drop + opt_ret
 
 CmdSetLCD:      dw op_rdReg + JTAG_RX       ; wparam
-                dw op_WrReg + SET_LCD
+                dw op_wrReg + SET_LCD
                 dw op_ret
 
 CmdGetJoy:      dw op_wrEvt + JTAG_RST
@@ -510,7 +588,8 @@ op_shl64_n      equ op_call + $             ; i64 n                       n+8
                 dw op_to_r                  ; i64               ; Shifted-n*2
                 dw op_ret
 
-                dw 32 dup (op_shl64)        ; i64<<n
+                ;dw 32 dup (op_shl64)        ; i64<<n
+                TIMES 32 dw op_shl64        ; i64<<n
 Shifted:        dw op_ret
 
 ; ============================================================================
@@ -526,5 +605,3 @@ op_extend       equ op_call + $             ; i32                           9
                 dw op_swap + opt_ret        ; i64
 
 ; ============================================================================
-
-                END
