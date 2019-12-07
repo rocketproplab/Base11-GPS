@@ -1,4 +1,5 @@
 *
 !*.v
-!Frac7_GPS_top.ufc
+!Frac7_GPS_top.ucf
+!GPS.xise
 !.gitignore
