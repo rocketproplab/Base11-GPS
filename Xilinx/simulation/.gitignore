@@ -2,3 +2,5 @@ build/
 sim_build/
 results.xml
 *.pyc
+wavedrom.json
+GPS44.com
