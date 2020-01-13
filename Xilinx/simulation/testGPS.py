@@ -162,7 +162,7 @@ def testGPS(dut):
         yield Timer(18, units='us')
         # yield spiScan(spi_sclk, spi_mosi, spi_miso, spi_cs)
         waves.dumpj(header = {'text':'WaveDrom example', 'tick':0})
-        waves.write('wavedrom.json', header = {'tick':0}, config = {'hscale':2})
+        waves.write('wavedrom.json', header = {'tick':0}, config = {'hscale':3})
 
     # global stop_threads
     # stop_threads = True

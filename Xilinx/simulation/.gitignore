@@ -3,4 +3,5 @@ sim_build/
 results.xml
 *.pyc
 wavedrom.json
+wavedromp.json
 GPS44.com
