@@ -36,12 +36,14 @@ int fpga_init() {
 
     fp = fopen("24.bit", "rb"); // FPGA configuration bitstream
     if (!fp) return -1;
-
+    
+    printf("Writing FPGA layout... ");
     for (;;) {
         n = fread(s, 1, 2048, fp);
         if (n<=0) break;
         peri_spi(SPI_CS0, s, n, s, n);
     }
+    printf("Done!\n");
 
     fclose(fp);
 
@@ -57,8 +59,8 @@ int fpga_init() {
 
 //  Functions to test minispi
 void test_read_minispi() {
-    unsigned int test_mosi[3];
-    unsigned int test_miso[3];
+    unsigned short test_mosi[2] = {0};
+    unsigned short test_miso[2] = {0};
     
     // MAX2771 register read test (read first 3 registers)
     uint32_t reset_vals[] = {0xBEA41603, 0x20550288, 0x0EAFA1DC};
@@ -66,19 +68,55 @@ void test_read_minispi() {
         printf("testing SPI1 code. Attempting to read from register %d on MAX2771. Output should be %x\n", i, reset_vals[i]);
         short delta = i;
         peri_minispi(true, delta, test_mosi, test_miso);
-        printf("output is %x\n", ((uint32_t)test_miso[0] + ((uint32_t)test_miso[1])<<16));
+        printf("output is %x %x\n", (uint32_t)test_miso[0], (uint32_t)test_miso[1]);
     }
 }
 
 void test_write_minispi() {
-    printf("TODO");
+    unsigned short test_mosi[2] = {0xBEA4, 0x1603};
+    unsigned short test_miso[2] = {0};
+
+    printf("Testing write to MAX2771 chip.\n");
+    printf("Writing value 0xBEA41603 to register 0: \n");
+    peri_minispi(false, 0, test_mosi, test_miso);
+    printf("Reading value from register 0: output should be 0xBEA41603\n");
+    test_mosi[0] = 0;
+    test_mosi[1] = 0;
+    test_miso[0] = 0;
+    test_miso[1] = 0;
+    peri_minispi(true, 0, test_mosi, test_miso);
+    printf("Output is %x %x\n", (uint32_t)test_miso[0], (uint32_t)test_miso[1]);
 }
 
+void write_to_MAX() {
+    // we are writing to registers 0, 1, 2, 3, 4, 5, 7, 9, 10
+    unsigned short vals[22] = {0xBEA6, 0x25, 0x2000, 0x1008, 0x0EAF, 0x21DC, 0x698C, 0x8, 0xC0, 0x80, 0x0800, 0x70, 0x0, 0x0, 0x100, 0x61B6,  0x0, 0x0, 0xC0, 0x0, 0x100, 0x61B4};
+    unsigned short mosi[2];
+    unsigned short miso[2];
+    for (int i = 0; i <= 10; i++) {
+        if (i != 6 && i != 8) {
+            mosi[0]=vals[i*2];
+            mosi[1]=vals[i*2+1];
+            miso[0]=0;
+            miso[1]=0;
+            peri_minispi(false, i, mosi, miso);
+        
+        }
+    }
+    for (int i = 0; i <= 10; i++) {
+            // read
+            mosi[0]=0;
+            mosi[1]=0;
+            miso[0]=0;
+            miso[1]=0;
+            printf("reading register %d\n", i);
+            peri_minispi(true, i, mosi, miso);
+            printf("Output is %x %x\n", (uint32_t)miso[0], (uint32_t)miso[1]);
+    }
+}
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 int main(int /* argc */, char * /* argv */ []) {
-    
-    //test_read_minispi();
     
     SPI_MISO miso;
     int ret;
@@ -94,10 +132,10 @@ int main(int /* argc */, char * /* argv */ []) {
     }
 
     for(int i = 0; i<20; i++){
-    //  test_read_minispi();
+      //test_read_minispi();
     }
-
-    test_read_minispi();
+    write_to_MAX();
+    
     printf("Peripherals Initialized!\n");
 
     ret = fpga_init();
@@ -117,6 +155,8 @@ int main(int /* argc */, char * /* argv */ []) {
     printf("Search Initialized!\n");
 
     spi_set(CmdSetDAC, 2560); // Put TCVCXO bang on 10.000000 MHz
+
+    printf("Creating tasks\n");
 
     CreateTask(SearchTask);
     for(int i=0; i<NUM_CHANS; i++) CreateTask(ChanTask);

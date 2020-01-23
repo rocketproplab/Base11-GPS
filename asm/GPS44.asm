@@ -58,7 +58,8 @@ op_branch       equ 0A001h
 op_branchZ      equ 0B000h
 op_branchNZ     equ 0B001h
 
-op_rdReg        equ 0C000h
+op_rdReg        equ 0C000h ; specifies which register the serial line reads
+                           ; CHAN_IQ, SRQ, or SNAPSHOT.
 op_wrReg        equ 0D000h
 op_wrEvt        equ 0E000h
 
@@ -143,7 +144,7 @@ Main:           dw op_rdReg + GET_SRQ       ; 0
                 ;endm                        ; host_srq
                 %endrep
 
-                dw op_branchZ + Main        ;
+                dw op_branchZ + Main        ; loop if host_srq == 0
 
                 dw op_wrEvt + JTAG_RST      ;
                 dw op_rdReg + JTAG_RX       ; cmd

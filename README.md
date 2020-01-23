@@ -43,3 +43,24 @@ $ nasm GPS44.asm
 ```
 
 The executable will be a file called GPS44 in the same directory.
+
+## Simulation
+Simulation is handled by
+[cocotb](https://cocotb.readthedocs.io/en/latest/introduction.html) and
+[Icarus verilog](http://iverilog.icarus.com/). To run the simulation install
+Icarus with your favorite package manager then clone the cocotb repository. The
+path to the cocotb repository needs to be updated in the makefile in the
+simulation folder found at ```Verilog/simulation/Makefile```. Update the lines
+```
+include ~/src/cocotb/cocotb/makefiles/Makefile.inc
+include ~/src/cocotb/cocotb/makefiles/Makefile.sim
+```
+to point into the makefiles directory in your cocotb installation.
+
+To run the simulation change into the ```Verilog/simulation``` directory in this
+repository and run make with the path to the
+[Xilinx ISE](https://www.xilinx.com/products/design-tools/ise-design-suite.html)
+simulation files. For example: ```make XILINX=~/.xilinx/14.7/ISE_DS/ISE```. This
+will run the simulation specifyied in testGPS.py and will output the resulting
+timing diagram to wavedrom.json. To view this you can use the
+[wavedrom webapp](https://wavedrom.com/editor.html).
