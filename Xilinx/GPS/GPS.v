@@ -167,7 +167,7 @@ module GPS (
 
     always @ (posedge clk)
         sample_high <= limiter_high;
-		  
+
 	 always @ (posedge clk)
         sample_low <= limiter_low;
 
@@ -177,7 +177,7 @@ module GPS (
         .din    (sample_high),
         .rd     (sampler_rd),
         .dout   (sampler_hi_dout));
-		  
+
 	 SAMPLER sampler_low (
         .clk    (clk),
         .rst    (sampler_rst),
