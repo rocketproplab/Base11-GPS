@@ -170,7 +170,9 @@ static void Sample() {
         }
     }
 
+    //printf("Starting fftw plan ...");
     fftwf_execute(fwd_plan); // Transform to frequency domain
+    //printf("done!\n");
     NextTask();
 }
 
@@ -232,6 +234,7 @@ void SearchTask() {
 
     for(;;)
         for (sv=0; sv<NUM_SATS; sv++) {
+//	for (sv=8; sv<10; sv++){
             if (Busy[sv]) // SV already acquired?
                 continue;
 
@@ -241,6 +244,8 @@ void SearchTask() {
             t_sample = Microseconds(); // sample time
             Sample();
             snr = Correlate(sv, &lo_shift, &ca_shift);
+	    
+	    printf("SNR for SV %d is %f.\n", sv, snr);
 
             // UserStat(STAT_PRN, snr, Sats[sv].prn);
 

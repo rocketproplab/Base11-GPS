@@ -208,12 +208,17 @@ int peri_init() {
     // Pin 21 - SPI1_SCLK
     
     
-    
+    printf("Checking if FPGA is reset\n");
     // Reset FPGA
-    GP_SET0 = 1<<FPGA_PROG + 1<<5; // set pin 4 (output to FPGA), set pin 5 (not shutdown pin) to 1
-    //while ((GP_LEV0 & (1<<FPGA_INIT_B)) != 0); // wait until SPI0_MISO is zero
+    GP_SET0 = (1<<FPGA_PROG) + (1<<5); // set pin 4 (output to FPGA), set pin 5 (not shutdown pin) to 1
+    
+    while ((GP_LEV0 & (1<<FPGA_INIT_B)) != 0); // wait until SPI0_MISO is zero
+    printf("Reset FPGA\n");
+
     GP_CLR0 = 1<<FPGA_PROG; // then clear pin 4
-    //while ((GP_LEV0 & (1<<FPGA_INIT_B)) == 0); //TODO uncomment when attached to GPS
+    while ((GP_LEV0 & (1<<FPGA_INIT_B)) == 0); //TODO uncomment when attached to GPS
+    printf("Done starting FPGA\n");
+
 
     AUXEN_B = 1 << 1; // set SPI 1 enable
     //SPI1_CNTL0 = 0xF00A0000 | (1<<11) | (1 << 8); // set CE1 and enable SPI1
@@ -251,31 +256,38 @@ void peri_spi(SPI_SEL sel, char *mosi, int txlen, char *miso, int rxlen) {
 
 }
 
-// Sends or receives one cycle of data (32 bit data value) to or from the MAX2771 at specified register address (reg_adr).
-// WARNING: This has not been tested, it might not work. I really hope it does...
+unsigned short flipBits(unsigned short input){
+	unsigned short soFar = 0;
+	for(int i = 0; i<16; i++){
+		soFar >>= 1;
+		soFar |= (input & 0x8000);
+		input <<= 1;
+	}
+	return soFar;
+}
 
-// to test this, first try reading from the first register in the beginning when the values are known
-void peri_minispi(bool rw, char reg_adr, unsigned *mosi, unsigned int *miso) {
+// Sends or receives one cycle of data (32 bit data value) to or from the MAX2771 at specified register address (reg_adr).
+
+// mosi and miso are pointers to arrays with two shorts. First short is LSB 
+void peri_minispi(bool rw, char reg_adr, unsigned short *mosi, unsigned short *miso) {
     int rxlen, txlen;
     int rx = 0, tx = 0;
-    
+
     // set chip select and enable bit, and clock speed (0xF00300)
     // don't know what clock speed is needed for SPI1 clock, setting to same speed as SPI0 for now
     AUXEN_B = 1 << 1; // set SPI 1 enable
-    SPI1_CNTL0 = (50 << 20) | (1<<19) | (1<<17) | (1<<11) | (1<<10) | (1<<6) | 16; // set CE1 and enable SPI1
-    unsigned int val = SPI1_CNTL0;
+    SPI1_CNTL0 = (1<<9);
+    SPI1_CNTL0 = (2047 << 20) | (1<<19) | (1<<17) | (1<<11) | (1<<10) | (1<<6) | 16; // set CE1 and enable SPI1
 
     // first transfer 16 bits, with address and rw bit
     unsigned int adr_rw_ta = (reg_adr<<4) | (rw<<3);
-    while (SPI1_STAT & 1<<10) { }
+    while ((SPI1_STAT & 1<<10) || (SPI1_STAT & 1<<6)) { }
     SPI1_TXHOLD = adr_rw_ta << 16;
     while (rx<1) {
-        if (!(SPI1_STAT & (1<<7))) miso[rx++] = (short)SPI1_IO;
+        if (!(SPI1_STAT & (1<<7))) miso[rx++] = (short)(SPI1_IO>>16);
     }
     rx = 0;
     
-    //val = SPI1_PEEK;
-
     // then transfer 32 bits of data
     if (rw) { // read
         rxlen = 2; // should be 2
@@ -287,32 +299,52 @@ void peri_minispi(bool rw, char reg_adr, unsigned *mosi, unsigned int *miso) {
     }
     
     while (tx<txlen) {
-        if (!(SPI1_STAT & (1<<10))) {
-            if (tx != txlen-1)
-                SPI1_TXHOLD = mosi[tx++];
-            else
-                SPI1_IO = mosi[tx++];
+        if (!(SPI1_STAT & (1<<10)) && !(SPI1_STAT & (1<<6))) {
+            if (tx != txlen-1) {
+                SPI1_TXHOLD = ((uint32_t)mosi[tx++]) << 16;
+            }
+            
+            else {
+                SPI1_IO = ((uint32_t)mosi[tx++]) << 16;
+            }
+            //usleep(100);
+            
         }
-        if (!(SPI1_STAT & (1<<7))) miso[rx++] = SPI1_IO;
+        // wait while busy
+        while(SPI1_STAT & (1<<6)) {}
+        if (rx<2) {
+		unsigned short readValue = (unsigned short) (SPI1_IO>>16);
+                unsigned short actual = flipBits(readValue);
+                miso[rx++] = actual;
+	}
     }
     while (tx<rxlen) {
         if (!(SPI1_STAT & (1<<10))) {
-            if (tx != rxlen-1)
-                SPI1_TXHOLD = 0, tx++;
-            else
-                SPI1_IO = 0, tx++;
+            if (tx != rxlen-1) {
+                SPI1_TXHOLD = 0;
+                tx++;
+            }
+            else {
+                SPI1_IO = 0;
+                tx++;
+            }
         }
-        if (!(SPI1_STAT & (1<<7))) miso[rx++] = SPI1_IO;
+        if (!(SPI1_STAT & (1<<7))){
+		unsigned short readValue = (unsigned short) (SPI1_IO>>16);
+		unsigned short actual = flipBits(readValue);
+		miso[rx++] = actual;
+	}
     }
     while (rx<rxlen) {
-        if (!(SPI1_STAT & (1<<7))) miso[rx++] = SPI1_IO;
+        if (!(SPI1_STAT & (1<<7))){
+		unsigned short readValue = (unsigned short) (SPI1_IO>>16);
+                unsigned short actual = flipBits(readValue);
+                miso[rx++] = actual;
+ 	}
     }
     
-    //while (SPI1_STAT & (1<<10) || SPI1_STAT & (1<<7)) {}
-    
-    SPI1_CNTL0 = 0;
+    SPI1_CNTL0 = (1<<19) | (1<<18) | (1<<17) | (1<<9);
 }
-
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 void peri_free() {
